@@ -11,6 +11,7 @@
 		body {
 			margin: 0;
 			overflow: hidden;
+			user-select: none;
 		}
 		#test {
 			position: absolute;
@@ -37,6 +38,7 @@ const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q',
 const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
 const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades'}
 var deck = [];
+var hand = [];
 
 var width = 0;
 var height = 0;
@@ -44,18 +46,19 @@ var height = 0;
 var mouseX = 0;
 var mouseY = 0;
 
-const HAND_SIZE = Math.floor(Math.random() * 10) + 10;
+const HAND_SIZE = Math.floor(Math.random() * 40) + 10;
 const CARD_WIDTH_PX = 691;
 const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
 
 var hovered;
+var handsizeInterp = HAND_SIZE;
 
 // var TEST = 1;
 
 class Card {
-	constructor(n, suit, img) {
-		this.n = n;
+	constructor(num, suit, img) {
+		this.num = num;
 		this.suit = suit;
 		this.img = img;
 
@@ -69,14 +72,15 @@ class Card {
 	}
 
 	toString() {
-		return letters[this.n] + this.suit;
+		return letters[this.num] + this.suit;
 	}
 
 	toLongString() {
-		return longLetters[this.n] + ' of ' + suits[this.suit];
+		return longLetters[this.num] + ' of ' + suits[this.suit];
 	}
 
-	render(ctx, i, n, r, w, h) {
+	render(ctx) {
+		let [i, n, r, w, h] = [this.i, this.n, this.r, this.w, this.h];
 		if (this.hovered) {
 			this.targetOffY = -h / 6;
 		} else {
@@ -84,53 +88,69 @@ class Card {
 		}
 
 		ctx.save();
-		ctx.rotate(this.calcRot(i, n, r, w, h));
+		ctx.rotate(this.rotInterp);
 		ctx.drawImage(this.img, this.offX - w / 2, -r + this.offY, w, h);
 		ctx.restore();
 
 		this.offX += (this.targetOffX - this.offX) / 25;
 		this.offY += (this.targetOffY - this.offY) / 25;
+		this.iInterp += (this.i - this.iInterp) / 25;
+		this.rotInterp += (this.rot - this.rotInterp) / 25;
 	}
 
-	checkHit(x, y, i, n, r, w, h) {
-		let rot = this.calcRot(i, n, r, w, h);
-
+	checkHit(x, y) {
 		x -= width / 2;
 		y -= height + width / 2;
 
-		[x, y] = [x * Math.cos(-rot) - y * Math.sin(-rot),
-				x * Math.sin(-rot) + y * Math.cos(-rot)];
+		[x, y] = [x * Math.cos(-this.rot) - y * Math.sin(-this.rot),
+				x * Math.sin(-this.rot) + y * Math.cos(-this.rot)];
 
-		// if (i == TEST) document.getElementById('test').innerHTML = `${this.offX - w / 2}<${x}<${this.offX + w / 2}=${x > this.offX - w / 2 && x < this.offX + w / 2}<br>${-r + this.offY}<${y}<${-r + this.offY + h}=${y > -r + this.offY && y < -r + this.offY + h}`;
-		// ctx.save();
-		// if (i == TEST) {
-		// 	ctx.fillStyle = 'red';
-		// 	ctx.strokeStyle = 'red';
-		// }
-
-		// ctx.translate(width / 2, height + width / 2);
-		// ctx.rotate(rot);
-		// ctx.strokeRect(this.offX - w / 2, -r + this.offY, w , h);
-		// ctx.fillRect(x - 5, y - 5, 10, 10);
-		// ctx.restore();
-
-		if (x > this.offX - w / 2 && x < this.offX + w / 2 &&
-			y > -r + this.offY && y < -r + this.offY + h)
+		if (x > this.offX - this.w / 2 && x < this.offX + this.w / 2 &&
+			y > -this.r + this.offY && y < -this.r + this.offY + this.h)
 			return true;
 
 		return false;
 	}
 
-	calcRot(i, n, r, w, h) {
-		return (i - (n - 1) / 2) / n * 45 * Math.PI / 180;
+	setParams(i, n, r, w, h) {
+		this.i = i;
+		this.iInterp = i;
+		this.n = n;
+		this.r = r;
+		this.w = w;
+		this.h = h;
+		this.calcRot();
+		this.rotInterp = this.rot;
+	}
+
+	calcRot() {
+		this.rot = (this.i - (this.n - 1) / 2) / this.n * 45 * Math.PI / 180;
+	}
+
+	updateHandPos(i, n) {
+		this.i = i;
+		this.n = n;
+		this.calcRot();
 	}
 }
+
+var setCardParams = function() {
+	let r = Math.sqrt(2) * width / 2;
+	let cardH = r - width / Math.sqrt(3);
+	let cardW = cardH * CARD_ASPECT;
+
+	for (let i = 0; i < hand.length; i++) {
+		hand[i].setParams(i, hand.length, r, cardW, cardH);
+	}
+};
 
 var align = function() {
 	width = $(window).width();
 	height = $(window).height()
 	$('#canvas').attr("width", width)
 		.attr("height", height);
+
+	setCardParams();
 };
 
 addEventListener('resize', align);
@@ -142,15 +162,16 @@ var mouseListener = function(e) {
 
 addEventListener('mousemove', mouseListener);
 
-var canvasClick = function(e) {
+var canvasMouseDown = function(e) {
 	if (hovered) {
 		document.getElementById('test').innerHTML = hovered.toLongString();
+		removeCard(hand.indexOf(hovered));
 	} else {
 		document.getElementById('test').innerHTML = 'No card selected';
 	}
 };
 
-document.getElementById('canvas').addEventListener('click', canvasClick);
+document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
 
 var init = function(callback) {
 	let c = 0;
@@ -172,10 +193,13 @@ var init = function(callback) {
 
 	deck.sort(() => 0.5 - Math.random());
 	hand = deck.slice(0, HAND_SIZE);
+};
 
-	(function temp(c) {
-
-	})(0);
+var removeCard = function(n) {
+	hand.splice(n, 1);
+	for (let i = 0; i < hand.length; i++) {
+		hand[i].updateHandPos(i, hand.length);
+	}
 };
 
 var hoverCard = function(n) {
@@ -197,14 +221,11 @@ var render = function() {
 
 	ctx.save();
 	ctx.fillStyle = 'black';
-
-	let r = Math.sqrt(2) * width / 2;
-	let cardH = r - width / Math.sqrt(3);
-	let cardW = cardH * CARD_ASPECT;
+	
 	ctx.translate(width / 2, height + width / 2);
 	
 	for (let i = 0; i < hand.length; i++) {
-		hand[i].render(ctx, i, hand.length, r, cardW, cardH);
+		hand[i].render(ctx);
 	}
 
 	ctx.restore();
@@ -216,7 +237,7 @@ var render = function() {
 			continue;
 		}
 
-		let hit = hand[i].checkHit(mouseX, mouseY, i, hand.length, r, cardW, cardH, ctx);
+		let hit = hand[i].checkHit(mouseX, mouseY);
 		if (hit) {
 			hovered = hand[i];
 			hand[i].hovered = true;
@@ -239,6 +260,7 @@ $(document).ready(function() {
 	align();
 
 	init(function() {
+		setCardParams();
 		window.requestAnimationFrame(render);
 	});
 });
