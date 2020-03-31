@@ -77,21 +77,21 @@ class TableCardRenderer {
 
 		this.x = x;
 		this.y = y;
-		this.xTarget = width / 2 + Math.random() * 100 - 50;
-		this.yTarget = height / 2 + Math.random() * 100 - 50;
+		this.xTarget = Math.random() * 50 - 25 + (this.i - (group.length - 1) / 2) * 20;
+		this.yTarget = Math.random() * 50 - 25;
 
-		this.rot = (Math.random() * 120 - 60) * Math.PI / 180;
+		this.rot = (Math.random() * 90 - 45) * Math.PI / 180;
 		this.rotInterp = rot0;
 		this.flipped = false;
 
 		this.hovered = false;
-		this.hoveredX = (this.i - (group.length - 1) / 2) * 110 + width / 2;
-		this.hoveredY = height / 2;
+		this.hoveredX = (this.i - (group.length - 1) / 2) * 110;
+		this.hoveredY = 0;
 	}
 
 	render(ctx) {
 		ctx.save();
-		ctx.translate(this.x, this.y);
+		ctx.translate(width / 2 + this.x, height / 3 + this.y);
 		ctx.rotate(this.rotInterp);
 		ctx.drawImage(this.flipped ? cardBack : this.img, -this.w / 2, -this.h / 2, this.w, this.h);
 		ctx.restore();
@@ -108,8 +108,8 @@ class TableCardRenderer {
 	}
 
 	checkHit(x, y) {
-		x -= this.x;
-		y -= this.y;
+		x -= this.x - width / 2;
+		y -= this.y - height / 3;
 
 		[x, y] = [x * Math.cos(-this.rotInterp) - y * Math.sin(-this.rotInterp),
 				x * Math.sin(-this.rotInterp) + y * Math.cos(-this.rotInterp)];
@@ -119,8 +119,8 @@ class TableCardRenderer {
 	}
 
 	checkHitTargetPosition(x, y) {
-		x -= this.xTarget;
-		y -= this.yTarget;
+		x -= this.xTarget + width / 2;
+		y -= this.yTarget + height / 3;
 
 		[x, y] = [x * Math.cos(-this.rot) - y * Math.sin(-this.rot),
 				x * Math.sin(-this.rot) + y * Math.cos(-this.rot)];
