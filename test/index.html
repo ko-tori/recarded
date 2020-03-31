@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<style type="text/css">
+		canvas {
+			top: 0;
+			left: 0;
+		}
+
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+		#test {
+			position: absolute;
+			margin-top: 10px;
+			text-align: center;
+			width: 100%;
+			font-family: Calibri;
+			font-size: 6em;
+			font-weight: bold;
+		}
+
+		.pointer {
+			cursor: pointer;
+		}
+	</style>
+	<script type="text/javascript" src="jquery-3.4.1.min.js"></script>
+</head>
+<body>
+<div id='test'>No card selected</div>
+<canvas id='canvas'></canvas>
+
+<script type="text/javascript">
+const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
+const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades'}
+var deck = [];
+
+var width = 0;
+var height = 0;
+
+var mouseX = 0;
+var mouseY = 0;
+
+const HAND_SIZE = Math.floor(Math.random() * 10) + 10;
+const CARD_WIDTH_PX = 691;
+const CARD_HEIGHT_PX = 1056;
+const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
+
+var hovered;
+
+// var TEST = 1;
+
+class Card {
+	constructor(n, suit, img) {
+		this.n = n;
+		this.suit = suit;
+		this.img = img;
+
+		this.offX = 0;
+		this.offY = 0;
+		this.targetOffX = 0;
+		this.targetOffY = 0;
+
+		this.hovered = false;
+		this.selected = false;
+	}
+
+	toString() {
+		return letters[this.n] + this.suit;
+	}
+
+	toLongString() {
+		return longLetters[this.n] + ' of ' + suits[this.suit];
+	}
+
+	render(ctx, i, n, r, w, h) {
+		if (this.hovered) {
+			this.targetOffY = -h / 6;
+		} else {
+			this.targetOffY = 0;
+		}
+
+		ctx.save();
+		ctx.rotate(this.calcRot(i, n, r, w, h));
+		ctx.drawImage(this.img, this.offX - w / 2, -r + this.offY, w, h);
+		ctx.restore();
+
+		this.offX += (this.targetOffX - this.offX) / 25;
+		this.offY += (this.targetOffY - this.offY) / 25;
+	}
+
+	checkHit(x, y, i, n, r, w, h) {
+		let rot = this.calcRot(i, n, r, w, h);
+
+		x -= width / 2;
+		y -= height + width / 2;
+
+		[x, y] = [x * Math.cos(-rot) - y * Math.sin(-rot),
+				x * Math.sin(-rot) + y * Math.cos(-rot)];
+
+		// if (i == TEST) document.getElementById('test').innerHTML = `${this.offX - w / 2}<${x}<${this.offX + w / 2}=${x > this.offX - w / 2 && x < this.offX + w / 2}<br>${-r + this.offY}<${y}<${-r + this.offY + h}=${y > -r + this.offY && y < -r + this.offY + h}`;
+		// ctx.save();
+		// if (i == TEST) {
+		// 	ctx.fillStyle = 'red';
+		// 	ctx.strokeStyle = 'red';
+		// }
+
+		// ctx.translate(width / 2, height + width / 2);
+		// ctx.rotate(rot);
+		// ctx.strokeRect(this.offX - w / 2, -r + this.offY, w , h);
+		// ctx.fillRect(x - 5, y - 5, 10, 10);
+		// ctx.restore();
+
+		if (x > this.offX - w / 2 && x < this.offX + w / 2 &&
+			y > -r + this.offY && y < -r + this.offY + h)
+			return true;
+
+		return false;
+	}
+
+	calcRot(i, n, r, w, h) {
+		return (i - (n - 1) / 2) / n * 45 * Math.PI / 180;
+	}
+}
+
+var align = function() {
+	width = $(window).width();
+	height = $(window).height()
+	$('#canvas').attr("width", width)
+		.attr("height", height);
+};
+
+addEventListener('resize', align);
+
+var mouseListener = function(e) {
+	mouseX = e.clientX;
+	mouseY = e.clientY;
+};
+
+addEventListener('mousemove', mouseListener);
+
+var canvasClick = function(e) {
+	if (hovered) {
+		document.getElementById('test').innerHTML = hovered.toLongString();
+	} else {
+		document.getElementById('test').innerHTML = 'No card selected';
+	}
+};
+
+document.getElementById('canvas').addEventListener('click', canvasClick);
+
+var init = function(callback) {
+	let c = 0;
+
+	for (let suit of ['C', 'D', 'H', 'S']) {
+		for (let n = 1; n <= 13; n++) {
+			let i = new Image;
+			i.src = 'cards/' + letters[n] + suit + '.png';
+			i.onload = function() {
+				c++;
+
+				if (c == 52) {
+					callback();
+				}
+			}
+			deck.push(new Card(n, suit, i));
+		}
+	}
+
+	deck.sort(() => 0.5 - Math.random());
+	hand = deck.slice(0, HAND_SIZE);
+
+	(function temp(c) {
+
+	})(0);
+};
+
+var hoverCard = function(n) {
+	unhoverCards();
+	hand[n].hovered = true;
+};
+
+var unhoverCards = function() {
+	for (let i = 0; i < hand.length; i++) {
+		hand[i].hovered = false;
+	}
+};
+
+var render = function() {
+	let canvas = document.getElementById('canvas');
+	let ctx = canvas.getContext('2d');
+
+	ctx.clearRect(0, 0, width, height);
+
+	ctx.save();
+	ctx.fillStyle = 'black';
+
+	let r = Math.sqrt(2) * width / 2;
+	let cardH = r - width / Math.sqrt(3);
+	let cardW = cardH * CARD_ASPECT;
+	ctx.translate(width / 2, height + width / 2);
+	
+	for (let i = 0; i < hand.length; i++) {
+		hand[i].render(ctx, i, hand.length, r, cardW, cardH);
+	}
+
+	ctx.restore();
+
+	let flag = false;
+	for (let i = hand.length - 1; i >= 0; i--) {
+		if (flag) {
+			hand[i].hovered = false;
+			continue;
+		}
+
+		let hit = hand[i].checkHit(mouseX, mouseY, i, hand.length, r, cardW, cardH, ctx);
+		if (hit) {
+			hovered = hand[i];
+			hand[i].hovered = true;
+			$(canvas).addClass('pointer');
+			flag = true;
+		} else {
+			hand[i].hovered = false;
+		}
+	}
+
+	if (!flag) {
+		$(canvas).removeClass('pointer');
+		hovered = undefined;
+	}
+
+	window.requestAnimationFrame(render);
+};
+
+$(document).ready(function() {
+	align();
+
+	init(function() {
+		window.requestAnimationFrame(render);
+	});
+});
+
+function testHovers() {
+	(function f(n) {
+		if (n >= hand.length) {
+			unhoverCards();
+			return;
+		}
+		hoverCard(n);
+		setTimeout(() => f(n + 1), 200);
+	})(0);
+}
+
+</script>
+</body>
+</html>
