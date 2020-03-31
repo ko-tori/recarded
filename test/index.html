@@ -37,10 +37,11 @@
 const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
 const numRanks = [0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades'};
-const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3};
+const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades', 'J': 'Joker'};
+const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3, 'J': 4};
 var deck = [];
 var hand = [];
+var table = [];
 
 var width = 0;
 var height = 0;
@@ -53,17 +54,85 @@ const CARD_WIDTH_PX = 691;
 const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
 
+const cardBack = new Image;
+cardBack.src = 'cards/back.png';
+
 var hovered;
 var selected = [];
 
-// var TEST = 1;
+const cardSorter = (a, b) => {
+	if (a.suit == b.suit) {
+		return numRanks[a.num] - numRanks[b.num];
+	}
+	return suitRanks[a.suit] - suitRanks[b.suit];
+};
 
-class Card {
-	constructor(num, suit, img) {
-		this.num = num;
-		this.suit = suit;
+class TableCardRenderer {
+	constructor(group, i, img, x, y, rot0) {
+		this.group = group;
 		this.img = img;
+		this.i = i;
+		this.w = 100;
+		this.h = this.w / CARD_ASPECT;
 
+		this.x = x;
+		this.y = y;
+		this.xTarget = width / 2 + Math.random() * 100 - 50;
+		this.yTarget = height / 2 + Math.random() * 100 - 50;
+
+		this.rot = (Math.random() * 120 - 60) * Math.PI / 180;
+		this.rotInterp = rot0;
+		this.flipped = false;
+
+		this.hovered = false;
+		this.hoveredX = (this.i - (group.length - 1) / 2) * 110 + width / 2;
+		this.hoveredY = height / 2;
+	}
+
+	render(ctx) {
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.rotate(this.rotInterp);
+		ctx.drawImage(this.flipped ? cardBack : this.img, -this.w / 2, -this.h / 2, this.w, this.h);
+		ctx.restore();
+
+		if (!this.flipped && this.hovered) {
+			this.x += (this.hoveredX - this.x) / 15;
+			this.y += (this.hoveredY - this.y) / 15;
+			this.rotInterp += (-this.rotInterp) / 15;
+		} else {
+			this.x += (this.xTarget - this.x) / 15;
+			this.y += (this.yTarget - this.y) / 15;
+			this.rotInterp += (this.rot - this.rotInterp) / 15;
+		}	
+	}
+
+	checkHit(x, y) {
+		x -= this.x;
+		y -= this.y;
+
+		[x, y] = [x * Math.cos(-this.rotInterp) - y * Math.sin(-this.rotInterp),
+				x * Math.sin(-this.rotInterp) + y * Math.cos(-this.rotInterp)];
+
+		return x > -this.w / 2 && x < this.w / 2 &&
+			y > -this.h / 2 && y < this.h / 2;
+	}
+
+	checkHitTargetPosition(x, y) {
+		x -= this.xTarget;
+		y -= this.yTarget;
+
+		[x, y] = [x * Math.cos(-this.rot) - y * Math.sin(-this.rot),
+				x * Math.sin(-this.rot) + y * Math.cos(-this.rot)];
+
+		return x > -this.w / 2 && x < this.w / 2 &&
+			y > -this.h / 2 && y < this.h / 2;
+	}
+}
+
+class HandCardRenderer {
+	constructor(img) {
+		this.img = img;
 		this.offX = 0;
 		this.offY = 0;
 		this.targetOffX = 0;
@@ -74,14 +143,6 @@ class Card {
 
 		this.blur = 0;
 		this.blurInterp = 0;
-	}
-
-	toString() {
-		return letters[this.num] + this.suit;
-	}
-
-	toLongString() {
-		return longLetters[this.num] + ' of ' + suits[this.suit];
 	}
 
 	render(ctx) {
@@ -109,21 +170,32 @@ class Card {
 		if (this.blurInterp < 0.5) this.blurInterp = 0;
 	}
 
+	getPosRot() {
+		let x = this.offX - this.w / 2;
+		let y = this.offY - this.r;
+
+		[x, y] = [x * Math.cos(this.rotInterp) - y * Math.sin(this.rotInterp),
+				x * Math.sin(this.rotInterp) + y * Math.cos(this.rotInterp)];
+
+		x += width / 2;
+		y += height + width / 2;
+
+		return [x, y, this.rotInterp];
+	}
+
 	checkHit(x, y) {
 		x -= width / 2;
 		y -= height + width / 2;
 
-		[x, y] = [x * Math.cos(-this.rot) - y * Math.sin(-this.rot),
-				x * Math.sin(-this.rot) + y * Math.cos(-this.rot)];
+		[x, y] = [x * Math.cos(-this.rotInterp) - y * Math.sin(-this.rotInterp),
+				x * Math.sin(-this.rotInterp) + y * Math.cos(-this.rotInterp)];
 
-		if (x > this.offX - this.w / 2 && x < this.offX + this.w / 2 &&
-			y > -this.r + this.offY && y < -this.r + this.offY + this.h)
-			return true;
-
-		return false;
+		return x > this.offX - this.w / 2 && x < this.offX + this.w / 2 &&
+			y > -this.r + this.offY && y < -this.r + this.offY + this.h;
 	}
 
-	setParams(i, n, r, w, h) {
+	setRendererParams(params) {
+		let [i, n, r, w, h] = params;
 		this.i = i;
 		this.iInterp = i;
 		this.n = n;
@@ -134,16 +206,69 @@ class Card {
 		this.rotInterp = this.rot;
 	}
 
-	calcRot() {
-		this.rot = (this.i - (this.n - 1) / 2) / this.n * 45 * Math.PI / 180;
-	}
-
 	updateHandPos(i, n) {
 		this.i = i;
 		this.n = n;
 		this.calcRot();
 	}
+
+	calcRot() {
+		this.rot = (this.i - (this.n - 1) / 2) / this.n * 45 * Math.PI / 180;
+	}
 }
+
+class Card {
+	constructor(num, suit, img) {
+		this.num = num;
+		this.suit = suit;
+		this.img = img;
+
+		this.renderer = new HandCardRenderer(img);
+	}
+
+	toString() {
+		return letters[this.num] + this.suit;
+	}
+
+	toLongString() {
+		if (this.suit == 'J') {
+			return (this.num == 1 ? 'Big' : 'Small') + ' Joker';
+		}
+		return longLetters[this.num] + ' of ' + suits[this.suit];
+	}
+
+	render(ctx) {
+		this.renderer.render(ctx);
+	}
+
+	checkHit(x, y) {
+		return this.renderer.checkHit(x, y);
+	}
+
+	setRendererParams() {
+		this.renderer.setRendererParams(arguments);
+	}
+}
+
+var playCards = function(cards) {
+	cards.sort(cardSorter);
+	if (cards.length == 0) {
+		return;
+	}
+
+	for (let i = 0; i < cards.length; i++) {
+		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, ...cards[i].renderer.getPosRot());
+	}
+
+	if (table.length > 0) {
+		for (let card of table[table.length - 1]) {
+			card.renderer.flipped = true;
+		}
+	}
+
+
+	table.push(cards);
+};
 
 var setCardParams = function() {
 	let r = Math.sqrt(2) * width / 2;
@@ -151,7 +276,7 @@ var setCardParams = function() {
 	let cardW = cardH * CARD_ASPECT;
 
 	for (let i = 0; i < hand.length; i++) {
-		hand[i].setParams(i, hand.length, r, cardW, cardH);
+		hand[i].setRendererParams(i, hand.length, r, cardW, cardH);
 	}
 };
 
@@ -186,16 +311,24 @@ addEventListener('mousedown', mouseDownListener);
 
 var clickListener = function(e) {
 	if (hovered) {
-		if (hovered.selected) {
-			hovered.selected = false;
+		if (hovered.renderer.selected) {
+			hovered.renderer.selected = false;
 			selected.splice(selected.indexOf(hovered), 1);
 		} else {
 			selected.push(hovered);
-			hovered.selected = true;
+			hovered.renderer.selected = true;
 		}
+	} else if (mouseX > width - 210 && mouseX < width - 10 && mouseY > height - 110 && mouseY < height - 10) {
+		let cards = [];
+		for (let card of selected) {
+			cards.push(card);
+			removeCard(hand.indexOf(card));
+		}
+		selected = [];
+		playCards(cards);
 	} else {
 		for (let card of selected) {
-			card.selected = false;
+			card.renderer.selected = false;
 		}
 		selected = [];
 	}
@@ -212,8 +345,9 @@ var contextMenuListener = function(e) {
 		let i = selected.indexOf(hovered);
 		if (i >= 0) {
 			selected.splice(i, 1);
-			document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
 		}
+		
+		document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
 	} else {
 		
 	}
@@ -224,17 +358,31 @@ addEventListener('contextmenu', contextMenuListener);
 var init = function(callback) {
 	let c = 0;
 
+	let finish = function() {
+		c++;
+
+		if (c == 54) {
+			callback();
+		}
+	};
+
+	let i = new Image;
+	i.src = 'cards/J1.png';
+	i.onload = finish;
+	deck.push(new Card('1', 'J', i));
+	deck.push(new Card('1', 'J', i));
+
+	i = new Image;
+	i.src = 'cards/J2.png';
+	i.onload = finish;
+	deck.push(new Card('2', 'J', i));
+	deck.push(new Card('2', 'J', i));
+
 	for (let suit of ['C', 'D', 'H', 'S']) {
 		for (let n = 1; n <= 13; n++) {
 			let i = new Image;
 			i.src = 'cards/' + letters[n] + suit + '.png';
-			i.onload = function() {
-				c++;
-
-				if (c == 52) {
-					callback();
-				}
-			}
+			i.onload = finish;
 			deck.push(new Card(n, suit, i));
 			deck.push(new Card(n, suit, i));
 		}
@@ -246,7 +394,7 @@ var init = function(callback) {
 
 var updateHandPositions = function() {
 	for (let i = 0; i < hand.length; i++) {
-		hand[i].updateHandPos(i, hand.length);
+		hand[i].renderer.updateHandPos(i, hand.length);
 	}
 };
 
@@ -257,12 +405,12 @@ var removeCard = function(n) {
 
 var hoverCard = function(n) {
 	unhoverCards();
-	hand[n].hovered = true;
+	hand[n].renderer.hovered = true;
 };
 
 var unhoverCards = function() {
 	for (let i = 0; i < hand.length; i++) {
-		hand[i].hovered = false;
+		hand[i].renderer.hovered = false;
 	}
 };
 
@@ -272,6 +420,30 @@ var render = function() {
 
 	ctx.clearRect(0, 0, width, height);
 
+	// table rendering
+	ctx.save();
+	for (let group of table) {
+		for (let card of group) {
+			card.render(ctx);
+		}
+	}
+	ctx.restore();
+
+	if (table.length > 0) {
+		let handHovered = false;
+		for (let card of table[table.length - 1]) {
+			if (card.renderer.checkHitTargetPosition(mouseX, mouseY)) {
+				handHovered = true;
+				break;
+			}
+		}
+
+		for (let card of table[table.length - 1]) {
+			card.renderer.hovered = handHovered;
+		}
+	}
+
+	// hand rendering
 	ctx.save();
 	ctx.fillText('Left click to select, right click to delete, refresh to draw a random hand', 10, 10);
 	ctx.fillStyle = 'black';
@@ -287,24 +459,40 @@ var render = function() {
 	let flag = false;
 	for (let i = hand.length - 1; i >= 0; i--) {
 		if (flag) {
-			hand[i].hovered = false;
+			hand[i].renderer.hovered = false;
 			continue;
 		}
 
 		let hit = hand[i].checkHit(mouseX, mouseY);
 		if (hit) {
 			hovered = hand[i];
-			hand[i].hovered = true;
+			hand[i].renderer.hovered = true;
 			$(canvas).addClass('pointer');
 			flag = true;
 		} else {
-			hand[i].hovered = false;
+			hand[i].renderer.hovered = false;
 		}
 	}
 
 	if (!flag) {
 		$(canvas).removeClass('pointer');
 		hovered = undefined;
+	}
+
+	ctx.save();
+	ctx.fillStyle = '#32cd32';
+	ctx.fillRect(width - 210, height - 110, 200, 100);
+	ctx.fillStyle = 'black';
+	ctx.font = 'bold 80px Calibri';
+	ctx.textBaseline = 'bottom';
+	ctx.textAlign = 'left';
+	ctx.fillText('Play!', width - 190, height - 20);
+	ctx.restore();
+
+	if (mouseX > width - 210 && mouseX < width - 10 && mouseY > height - 110 && mouseY < height - 10) {
+		$(canvas).addClass('pointer');
+	} else {
+		$(canvas).removeClass('pointer');
 	}
 
 	window.requestAnimationFrame(render);
@@ -316,12 +504,7 @@ $(document).ready(function() {
 	init(function() {
 		setCardParams();
 
-		hand.sort((a, b) => {
-			if (a.suit == b.suit) {
-				return numRanks[b.num] - numRanks[a.num];
-			}
-			return suitRanks[b.suit] - suitRanks[a.suit];
-		});
+		hand.sort(cardSorter);
 
 		updateHandPositions();
 
