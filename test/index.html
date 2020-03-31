@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title></title>
+	<title>Card UI Test</title>
 	<style type="text/css">
 		canvas {
 			top: 0;
@@ -15,11 +15,11 @@
 		}
 		#test {
 			position: absolute;
-			margin-top: 10px;
+			margin-top: 20px;
 			text-align: center;
 			width: 100%;
 			font-family: Calibri;
-			font-size: 6em;
+			font-size: 1em;
 			font-weight: bold;
 		}
 
@@ -30,13 +30,15 @@
 	<script type="text/javascript" src="jquery-3.4.1.min.js"></script>
 </head>
 <body>
-<div id='test'>No card selected</div>
+<div id='test'></div>
 <canvas id='canvas'></canvas>
 
 <script type="text/javascript">
 const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
-const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades'}
+const numRanks = [0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades'};
+const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3};
 var deck = [];
 var hand = [];
 
@@ -52,7 +54,7 @@ const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
 
 var hovered;
-var handsizeInterp = HAND_SIZE;
+var selected = [];
 
 // var TEST = 1;
 
@@ -69,6 +71,9 @@ class Card {
 
 		this.hovered = false;
 		this.selected = false;
+
+		this.blur = 0;
+		this.blurInterp = 0;
 	}
 
 	toString() {
@@ -81,21 +86,27 @@ class Card {
 
 	render(ctx) {
 		let [i, n, r, w, h] = [this.i, this.n, this.r, this.w, this.h];
-		if (this.hovered) {
-			this.targetOffY = -h / 6;
+		if (this.hovered || this.selected) {
+			this.targetOffY = -h / 5;
 		} else {
 			this.targetOffY = 0;
 		}
 
 		ctx.save();
 		ctx.rotate(this.rotInterp);
+		ctx.shadowColor = '#FADA5E';
+		ctx.shadowBlur = this.blurInterp;
+		this.blur = this.selected ? 30 : 0;
 		ctx.drawImage(this.img, this.offX - w / 2, -r + this.offY, w, h);
+		
 		ctx.restore();
 
-		this.offX += (this.targetOffX - this.offX) / 25;
-		this.offY += (this.targetOffY - this.offY) / 25;
-		this.iInterp += (this.i - this.iInterp) / 25;
-		this.rotInterp += (this.rot - this.rotInterp) / 25;
+		this.offX += (this.targetOffX - this.offX) / 15;
+		this.offY += (this.targetOffY - this.offY) / 15;
+		this.iInterp += (this.i - this.iInterp) / 15;
+		this.rotInterp += (this.rot - this.rotInterp) / 15;
+		this.blurInterp += (this.blur - this.blurInterp) / 10;
+		if (this.blurInterp < 0.5) this.blurInterp = 0;
 	}
 
 	checkHit(x, y) {
@@ -155,23 +166,60 @@ var align = function() {
 
 addEventListener('resize', align);
 
-var mouseListener = function(e) {
+var mouseMoveListener = function(e) {
 	mouseX = e.clientX;
 	mouseY = e.clientY;
 };
 
-addEventListener('mousemove', mouseListener);
+addEventListener('mousemove', mouseMoveListener);
 
-var canvasMouseDown = function(e) {
+var mouseDownListener = function(e) {
 	if (hovered) {
-		document.getElementById('test').innerHTML = hovered.toLongString();
-		removeCard(hand.indexOf(hovered));
+		
+		//removeCard(hand.indexOf(hovered));
 	} else {
-		document.getElementById('test').innerHTML = 'No card selected';
+		//document.getElementById('test').innerHTML = 'No card selected';
 	}
 };
 
-document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
+addEventListener('mousedown', mouseDownListener);
+
+var clickListener = function(e) {
+	if (hovered) {
+		if (hovered.selected) {
+			hovered.selected = false;
+			selected.splice(selected.indexOf(hovered), 1);
+		} else {
+			selected.push(hovered);
+			hovered.selected = true;
+		}
+	} else {
+		for (let card of selected) {
+			card.selected = false;
+		}
+		selected = [];
+	}
+
+	document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
+};
+
+addEventListener('click', clickListener);
+
+var contextMenuListener = function(e) {
+	e.preventDefault();
+	if (hovered) {
+		removeCard(hand.indexOf(hovered));
+		let i = selected.indexOf(hovered);
+		if (i >= 0) {
+			selected.splice(i, 1);
+			document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
+		}
+	} else {
+		
+	}
+};
+
+addEventListener('contextmenu', contextMenuListener);
 
 var init = function(callback) {
 	let c = 0;
@@ -188,6 +236,7 @@ var init = function(callback) {
 				}
 			}
 			deck.push(new Card(n, suit, i));
+			deck.push(new Card(n, suit, i));
 		}
 	}
 
@@ -195,11 +244,15 @@ var init = function(callback) {
 	hand = deck.slice(0, HAND_SIZE);
 };
 
-var removeCard = function(n) {
-	hand.splice(n, 1);
+var updateHandPositions = function() {
 	for (let i = 0; i < hand.length; i++) {
 		hand[i].updateHandPos(i, hand.length);
 	}
+};
+
+var removeCard = function(n) {
+	hand.splice(n, 1);
+	updateHandPositions();
 };
 
 var hoverCard = function(n) {
@@ -220,6 +273,7 @@ var render = function() {
 	ctx.clearRect(0, 0, width, height);
 
 	ctx.save();
+	ctx.fillText('Left click to select, right click to delete, refresh to draw a random hand', 10, 10);
 	ctx.fillStyle = 'black';
 	
 	ctx.translate(width / 2, height + width / 2);
@@ -261,6 +315,16 @@ $(document).ready(function() {
 
 	init(function() {
 		setCardParams();
+
+		hand.sort((a, b) => {
+			if (a.suit == b.suit) {
+				return numRanks[b.num] - numRanks[a.num];
+			}
+			return suitRanks[b.suit] - suitRanks[a.suit];
+		});
+
+		updateHandPositions();
+
 		window.requestAnimationFrame(render);
 	});
 });
