@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>找朋友</title>
+	<title>Rooms</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
 	<%- include('header', {user: user}); %>
 	<div id="contents">
-		Welcome to 找朋友!
-	</div>
+		<% if (user.rooms.length < 1) { %>
+			No rooms.
+		<% } for (let room of user.rooms) { %>
+			<%= room %>
+		<% } %>
 </body>
 </html>

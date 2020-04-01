@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css?family=Titillium+Web');
+body {
+	font-family: 'Titillium Web', sans-serif;
+}
+#header {
+	margin: 10px;
+	padding: 0px 15px;
+	display: flex;
+	justify-content: space-between;
+}
+
+#zpytitle a {
+    text-decoration: none;
+}
+
+#header a {
+	color: black;
+}
+
+#header a:hover {
+	color: rgb(0, 46, 121);
+}
+
+#zpytitle {
+    width: 50%;
+    margin-bottom: 0;
+}
+
+#contents {
+	margin: 20px 10px;
+	padding: 0px 15px;
+}
+
+#navbar ul {
+	padding-left: 25px;
+	margin:
+}
+#navbar li {
+	transition: background-color 0.5s;
+	color: black;
+	background-color: #EEE;
+	padding: 5px 10px;
+	display: inline-block;
+	list-style: none;
+}
+#navbar li:hover {
+	background-color: #DDD;
+}
