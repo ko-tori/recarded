@@ -5,5 +5,5 @@ WIP implementation of the Chinese card game 找朋友 (Finding Friends).
 #### How to set up:
 `npm install`
 #### How to run:
-`npm start`
+`npm start`<br>
 Website runs on port `3003` by default.
