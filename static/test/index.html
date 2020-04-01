@@ -27,7 +27,7 @@
 			cursor: pointer;
 		}
 	</style>
-	<script type="text/javascript" src="jquery-3.4.1.min.js"></script>
+	<script type="text/javascript" src="/ext/jquery-3.4.1.min.js"></script>
 </head>
 <body>
 <div id='test'></div>
@@ -55,7 +55,7 @@ const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
 
 const cardBack = new Image;
-cardBack.src = 'cards/back.png';
+cardBack.src = '/cards/back.png';
 
 var hovered;
 var selected = [];
@@ -367,13 +367,13 @@ var init = function(callback) {
 	};
 
 	let i = new Image;
-	i.src = 'cards/J1.png';
+	i.src = '/cards/J1.png';
 	i.onload = finish;
 	deck.push(new Card('1', 'J', i));
 	deck.push(new Card('1', 'J', i));
 
 	i = new Image;
-	i.src = 'cards/J2.png';
+	i.src = '/cards/J2.png';
 	i.onload = finish;
 	deck.push(new Card('2', 'J', i));
 	deck.push(new Card('2', 'J', i));
@@ -381,7 +381,7 @@ var init = function(callback) {
 	for (let suit of ['C', 'D', 'H', 'S']) {
 		for (let n = 1; n <= 13; n++) {
 			let i = new Image;
-			i.src = 'cards/' + letters[n] + suit + '.png';
+			i.src = '/cards/' + letters[n] + suit + '.png';
 			i.onload = finish;
 			deck.push(new Card(n, suit, i));
 			deck.push(new Card(n, suit, i));

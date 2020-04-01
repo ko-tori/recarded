@@ -8,14 +8,17 @@
 		<% } %>
 	</div>
 </div>
-<% if (user) { %>
 	<nav id="navbar">
 		<ul>
 			<a href="/"><li>Home</li></a>
-			<a href="rooms"><li>My Rooms</li></a>
-			<a href="users"><li>Users</li></a>
-			<a href="profile"><li>Profile</li></a>
+			<% if (user) { %>
+				<a href="/rooms"><li>My Rooms</li></a>
+			<% } %>
+			<a href="/users"><li>Users</li></a>
+			<% if (user) { %>
+				<a href="/profile"><li>Profile</li></a>
+			<% } %>
+			<a href="/about"><li>About</li></a>
 		</ul>
 	</nav>
-<% } %>
 <hr>

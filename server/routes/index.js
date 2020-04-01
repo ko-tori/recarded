@@ -63,11 +63,25 @@ router.get('/rooms', function(req, res) {
 });
 
 router.get('/profile', function(req, res) {
-	if (!req.user) {
+	if (req.query.u) {
+		Account.findOne({ username: req.query.u }, null, { lean: true }, function (err, profileuser) {
+			res.render('profile',  { user: req.user, profileuser: profileuser });
+		});
+	} else if (!req.user) {
 		res.render('nouser');
-		return;
+	} else {
+		res.render('profile',  { user: req.user, profileuser: req.user });
 	}
-	res.render('profile',  { user: req.user });
-})
+});
+
+router.get('/about', function(req, res) {
+	res.render('about',  { user: req.user });
+});
+
+router.get('/users', function(req, res) {
+	Account.find({}, null, { lean: true }, function (err, users) {
+		res.render('users', { user: req.user, users: users });
+	});
+});
 
 module.exports = router;

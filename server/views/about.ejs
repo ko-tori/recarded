@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title><%= profileuser.username %>'s Profile</title>
+	<title>About</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
 	<%- include('header', {user: user}); %>
 	<div id="contents">
-		<% if (profileuser) { %>
-		<%= profileuser.username %>'s Profile
-		<% } else { %>
-			User not found
-		<% } %>
+		<h3>About 找朋友 (Finding Friends)</h3>
+
+		Rules and stuff
 </body>
 </html>

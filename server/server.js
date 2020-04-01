@@ -38,6 +38,8 @@ passport.deserializeUser(Account.deserializeUser());
 
 mongoose.connect('mongodb://localhost/zpy', { useNewUrlParser: true, useUnifiedTopology: true });
 
+const PORT = 3003;
+
 server.listen(3003, function() {
-    console.log(`Running on port 3003...`);
+    console.log(`Running on port ${PORT}...`);
 });
