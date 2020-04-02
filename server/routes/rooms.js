@@ -4,64 +4,66 @@ var fs = require('fs');
 var path = require('path');
 var Account = require('../db/account');
 var Room = require('../db/room');
-var ObjectId = require('mongoose').Types.ObjectId;
 
-router.get("/:id", async function (req, res) {
+router.get('/', async function(req, res) {
 	if (!req.user) {
 		res.render('nouser');
 		return;
 	}
+	
+	res.render('rooms', { user: req.user });
+});
 
-    let room = await Room.findById(req.params.id);
-	if (!room) {
-		res.send('room not found');
+router.get('/owned', async function(req, res) {
+	if (!req.user) {
+		res.send({});
 		return;
 	}
 
-	let inviteIndex = room.invited.findIndex(u => u._id.equals(req.user._id));
-	let memberIndex = room.members.findIndex(u => u._id.equals(req.user._id));
-
-	if (!req.user._id.equals(room.owner) && inviteIndex == -1 && memberIndex == -1) {
-		if (room.inviteOnly) {
-			res.send('this room is invite only');
-			return;
-		} else if (room.password) {
-			res.send('this room requires a password');
+	let ownedRooms = (await Promise.all(req.user.ownedRooms.map(id => Room.findById(id)))).map(room => {
+		return {
+			name: room.name,
+			id: room._id
 		}
-	}
+	}).reverse();
+	
+	res.send(JSON.stringify(ownedRooms));
+});
 
-	if (room.members.length >= 4) {
-		res.send('this room is full');
+router.get('/joined', async function(req, res) {
+	if (!req.user) {
+		res.send({});
 		return;
 	}
 
-	if (inviteIndex >= 0) {
-		room.invited.splice(inviteIndex, 1);
-	}
-	if (!req.user._id.equals(room.owner) && memberIndex == -1) {
-		room.members.push(req.user._id);
-	}
-	room.save();
-
-	if (!req.user._id.equals(room.owner)) {
-		let uInvitedRoomsIndex = req.user.invitedRooms.indexOf(room._id);
-		if (uInvitedRoomsIndex != -1) {
-			req.user.invitedRooms.splice(uInvitedRoomsIndex, 1);
+	let joinedRooms = (await Promise.all(req.user.joinedRooms.map(id => Room.findById(id)))).map(room => {
+		return {
+			name: room.name,
+			id: room._id
 		}
-		if (req.user.joinedRooms.findIndex(i => i.equals(room._id)) == -1) {
-			req.user.joinedRooms.push(room._id);
-		}
-		req.user.save();
+	}).reverse();
+	
+	res.send(JSON.stringify(joinedRooms));
+});
+
+router.get('/invited', async function(req, res) {
+	if (!req.user) {
+		res.send({});
+		return;
 	}
 
-	let owner = await Account.findById(room.owner);
-	let members = (await Promise.all(room.members.map(m => Account.findById(m)))).map(m => m.username);
-	let invited = (await Promise.all(room.invited.map(m => Account.findById(m)))).map(m => m.username);
+	let invitedRooms = (await Promise.all(req.user.invitedRooms.map(id => Room.findById(id)))).reverse();
+	let inviters = await Promise.all(invitedRooms.map(room => Account.findById(room.owner)));
 
-	let payload = `Welcome to room ${room.name}<br>
-		Players: ${[owner.username].concat(members).join(', ')}<br>
-		Invited: ${invited.join(', ')}`;
-	res.send(payload);
+	invitedRooms = invitedRooms.map((r, i) => {
+		return {
+			name: r.name,
+			id: r._id,
+			ownerName: inviters[i].username
+		}
+	});
+	
+	res.send(JSON.stringify(invitedRooms));
 });
 
 module.exports = router;

@@ -57,7 +57,7 @@ body {
 a .listitem {
 	text-decoration: none;
 	color: black;
-	margin: 2px 0px;
+	margin: 2px 2px;
 }
 
 .listitem:hover {

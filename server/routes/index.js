@@ -55,22 +55,6 @@ router.get('/logout', function(req, res) {
 	res.redirect('/');
 });
 
-router.get('/rooms', async function(req, res) {
-	if (!req.user) {
-		res.render('nouser');
-		return;
-	}
-
-	let ownedRooms = (await Promise.all(req.user.ownedRooms.map(id => Room.findById(id)))).reverse();
-	let joinedRooms = (await Promise.all(req.user.joinedRooms.map(id => Room.findById(id)))).reverse();
-	let invitedRooms = (await Promise.all(req.user.invitedRooms.map(id => Room.findById(id)))).reverse();
-	let inviters = await Promise.all(invitedRooms.map(room => Account.findById(room.owner)));
-	for (let i = 0; i < invitedRooms.length; ++i) {
-		invitedRooms[i].ownerName = inviters[i].username;
-	}
-	res.render('rooms', { user: req.user, ownedRooms: ownedRooms, joinedRooms: joinedRooms, invitedRooms: invitedRooms });
-});
-
 router.get('/profile', function(req, res) {
 	if (req.query.u) {
 		Account.findOne({ username: req.query.u }, null, { lean: true }, function (err, profileuser) {

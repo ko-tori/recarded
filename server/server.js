@@ -29,7 +29,8 @@ app.set('view engine', 'ejs');
 app.use(express.static('static'));
 
 app.use('/', require('./routes/index'));
-app.use('/r', require('./routes/rooms'));
+app.use('/r', require('./routes/r'));
+app.use('/rooms', require('./routes/rooms'));
 
 var Account = require('./db/account');
 passport.use(Account.createStrategy());
