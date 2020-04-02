@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Test</title>
+</head>
+<body>
+	<div id="out"></div>
+<script type="text/javascript">
+	const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'];
+	const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
+	const numRanks = [0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+	const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades', 'J': 'Joker'};
+	const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3, 'J': 4};
+	const playerdeckdict = {[5,2] : 20};
+	const Phases = ["Draw", "Bottom", "Play", "Score"];
+	// You can use the above to help make readable output
+
+	class Card {
+		constructor(suit, num) {
+			this.suit = suit;
+			this.num = num;
+		}
+
+		serialize() {
+			if (this.suit == "J") {
+				return this.num == 1 ? "J1" : "J2";
+			}
+			return suits + letters[A];
+		}
+
+		toString() {
+			return serialize();
+		}
+	}
+
+	function analyzeHand(cards, declaredCard) {
+		// code here
+
+		return '';
+	}
+
+	// The outputs are just examples, just make them consistent and readable
+	var cards1 = [new Card('C', 1), new Card('C', 1)];
+	out.innerHTML += analyzeHand(cards1, new Card('S', 2)); // Clubs Pair (A)
+
+	var cards2 = [new Card('S', 1), new Card('S', 1), new Card('S', 13)];
+	out.innerHTML += analyzeHand(cards2, new Card('S', 2)); // Trump Pair (A), Trump Single (K)
+	// The order for multiple plays does not matter
+
+	var cards3 = [new Card('S', 1), new Card('S', 1), new Card('S', 13), new Card('S', 13)];
+	out.innerHTML += analyzeHand(cards3, new Card('S', 2)); // Trump Tractor (K-A)
+
+	var cards4 = [new Card('H', 12), new Card('H', 12), new Card('H', 1), new Card('H', 1), new Card('H', 13), new Card('H', 13)];
+	out.innerHTML += analyzeHand(cards4, new Card('S', 2)); // Trump Triple Tractor (Q-K-A)
+
+	var cards5 = [new Card('H', 3), new Card('H', 3), new Card('H', 5), new Card('H', 5)];
+	out.innerHTML += analyzeHand(cards5, new Card('S', 4)); // Hearts Tractor (3-5)
+
+	var cards6 = [new Card('D', 3), new Card('D', 3)];
+	out.innerHTML += analyzeHand(cards6, new Card('D', 3)); // Trump Pair (Big 3)
+
+	var cards7 = [new Card('H', 3)];
+	out.innerHTML += analyzeHand(cards7, new Card('D', 3)); // Trump Single (Small 3)
+
+	var cards8 = [new Card('J', 1), new Card('J', 1), new Card('J', 2), new Card('J', 2)];
+	out.innerHTML += analyzeHand(cards8, new Card('D', 3)); // Trump Tractor (Small Joker-Big Joker)
+
+	var cards9 = [new Card('J', 1), new Card('J', 1), new Card('D', 3), new Card('J', 2), new Card('D', 3), new Card('J', 2)];
+	out.innerHTML += analyzeHand(cards9, new Card('D', 3)); // Trump Triple Tractor (Big 3-Small Joker-Big Joker)
+
+	var cards10 = [new Card('J', 1), new Card('H', 3), new Card('J', 1), new Card('H', 3), new Card('D', 3), new Card('J', 2), new Card('D', 3), new Card('J', 2)];
+	out.innerHTML += analyzeHand(cards10, new Card('D', 3)); // Trump Triple Tractor (Big 3-Small Joker-Big Joker), Trump Pair (Small 3)
+	// The order for multiple plays does not matter
+
+	var cards11 = [new Card('H', 5), new Card('H', 5), new Card('H', 6), new Card('H', 6)];
+	out.innerHTML += analyzeHand(cards11, new Card('H', 5)); // Trump Pair (Big 5), Trump Pair (6)
+
+</script>
+</body>
+</html>
