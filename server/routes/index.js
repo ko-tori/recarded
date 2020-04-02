@@ -3,6 +3,7 @@ var router = express.Router();
 var passport = require('passport');
 var fs = require("fs");
 var Account = require('../db/account');
+var Room = require('../db/room');
 
 router.get('/', function(req, res) {
 	res.render('index', { user: req.user });
@@ -31,7 +32,7 @@ router.post('/register', function(req, res, next) {
 
 router.get('/login', function(req, res) {
 	if (req.user) res.redirect('/');
-	else res.render('login', { user: req.user, error: req.query.err });
+	else res.render('login', { user: req.user, error: undefined });
 });
 
 router.post('/login', function(req, res, next) {
@@ -54,12 +55,20 @@ router.get('/logout', function(req, res) {
 	res.redirect('/');
 });
 
-router.get('/rooms', function(req, res) {
+router.get('/rooms', async function(req, res) {
 	if (!req.user) {
 		res.render('nouser');
 		return;
 	}
-	res.render('rooms', { user: req.user });
+
+	let ownedRooms = (await Promise.all(req.user.ownedRooms.map(id => Room.findById(id)))).reverse();
+	let joinedRooms = (await Promise.all(req.user.joinedRooms.map(id => Room.findById(id)))).reverse();
+	let invitedRooms = (await Promise.all(req.user.invitedRooms.map(id => Room.findById(id)))).reverse();
+	let inviters = await Promise.all(invitedRooms.map(room => Account.findById(room.owner)));
+	for (let i = 0; i < invitedRooms.length; ++i) {
+		invitedRooms[i].ownerName = inviters[i].username;
+	}
+	res.render('rooms', { user: req.user, ownedRooms: ownedRooms, joinedRooms: joinedRooms, invitedRooms: invitedRooms });
 });
 
 router.get('/profile', function(req, res) {
@@ -81,6 +90,76 @@ router.get('/about', function(req, res) {
 router.get('/users', function(req, res) {
 	Account.find({}, null, { lean: true }, function (err, users) {
 		res.render('users', { user: req.user, users: users });
+	});
+});
+
+router.get('/newroom', function(req, res) {
+	if (!req.user) {
+		res.render('nouser');
+		return;
+	}
+	res.render('newroom', { user: req.user, error: undefined });
+});
+
+router.post('/newroom', async function(req, res) {
+	if (!req.user) {
+		res.render('nouser');
+		return;
+	}
+	if (req.body.name.length < 1) {
+		res.render('newroom', { user: req.user, error: "Please give the room a name" });
+		return;
+	}
+
+	let invited = {};
+	for (let invitedN of [req.body.invited1, req.body.invited2, req.body.invited3, req.body.invited4]) {
+		if (!invitedN.trim().length) {
+			continue;
+		}
+		if (invitedN == req.user.username) {
+			res.render('newroom', { user: req.user, error: `You can't invite yourself!` });
+			return;
+		}
+		let i = await Account.findOne({ username: invitedN });
+		if (!i) {
+			res.render('newroom', { user: req.user, error: `User ${invitedN} does not exist` });
+			return;
+		}
+
+		invited[invitedN] = i;
+	}
+
+	const room = new Room({
+		name: req.body.name,
+		owner: req.user._id,
+		members: [],
+		invited: Object.values(invited).map(i => i._id),
+		inviteOnly: Boolean(req.body.inviteOnly),
+		password: req.body.password,
+		status: "lobby",
+		game: null
+	});
+
+	for (let i of Object.values(invited)) {
+		i.invitedRooms.push(room._id);
+		i.save();
+	}
+
+	room.save(err => {
+		if (err) {
+			console.error(err);
+			res.render('newroom', { user: req.user, error: "There was an error when creating the room" });
+		} else {
+			req.user.ownedRooms.push(room._id);
+			req.user.save(err => {
+				if (err) {
+					console.error(err);
+					res.render('newroom', { user: req.user, error: "There was an error when creating the room" });
+				} else {
+					res.redirect('/r/' + room._id);
+				}
+			});
+		}
 	});
 });
 

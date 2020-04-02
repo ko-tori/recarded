@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Create a Room</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+	<%- include('header', {user: user}); %>
+	<div id="contents">
+		<h3>Create a Room</h3>
+
+		<form action="/newroom" method="post">
+			<input id="name_input" autocomplete="off" name="name" placeholder="Enter Room Name"><br>
+			<input autocomplete="off" name="password" placeholder="Enter Password (optional)"><br>
+			Invite only:<input type="checkbox" name="inviteOnly"><br>
+			Invite players:<br>
+			<input name="invited1" autocomplete="off" name="name" placeholder="Player 2"><br>
+			<input name="invited2" autocomplete="off" name="name" placeholder="Player 3"><br>
+			<input name="invited3" autocomplete="off" name="name" placeholder="Player 4"><br>
+			<input name="invited4" autocomplete="off" name="name" placeholder="Player 5"><br>
+			<input type="submit">
+		</form>
+
+		<% if(error) { %>
+		<br><b><%= error %></b><br>
+		<% } %>
+	</div>
+	<script type="text/javascript">
+		document.getElementById("name_input").focus();
+	</script>
+</body>
+</html>

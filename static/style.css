@@ -46,3 +46,20 @@ body {
 #navbar li:hover {
 	background-color: #DDD;
 }
+
+.listitem {
+	transition: background-color 0.5s;
+	padding: 10px 20px;
+	background-color: #EEE;
+	display: inline-block;
+}
+
+a .listitem {
+	text-decoration: none;
+	color: black;
+	margin: 2px 0px;
+}
+
+.listitem:hover {
+	background-color: #DDD;
+}

@@ -3,22 +3,6 @@
 <head>
 	<title>Users</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
-	<style type="text/css">
-		.userlistitem {
-			padding: 10px 20px;
-			background-color: #EEE;
-			transition: all 0.5s;
-		}
-
-		a {
-			text-decoration: none;
-			color: black;
-		}
-
-		.userlistitem:hover {
-			background-color: #DDD;
-		}
-	</style>
 </head>
 <body>
 	<%- include('header', {user: user}); %>
@@ -26,10 +10,11 @@
 		<h3>All Users</h3>
 		<% if (users.length > 0) { 
 			for (let u of users) { %>
-				<a href="/profile?u=<%= u.username %>"><div class="userlistitem"><%= u.username %></div></a>
+				<a href="/profile?u=<%= u.username %>"><div class="listitem"><%= u.username %></div></a>
 		<% 	}
 		} else { %>
 			No users
 		<% } %>
+	</div>
 </body>
 </html>

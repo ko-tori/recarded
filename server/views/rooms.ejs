@@ -3,14 +3,56 @@
 <head>
 	<title>Rooms</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
+	<style type="text/css">
+		#newroombuttonlink {
+			line-height: 2em;
+			text-decoration: none;
+			color: black;
+		}
+		#newroombutton {
+			padding: 10px 20px;
+			background-color: #EEE;
+			transition: all 0.5s;
+			display: inline-block;
+			font-weight: bold;
+		}
+
+		#newroombutton:hover {
+			background-color: #DDD;
+		}
+	</style>
 </head>
 <body>
 	<%- include('header', {user: user}); %>
 	<div id="contents">
-		<% if (user.rooms.length < 1) { %>
-			No rooms.
-		<% } for (let room of user.rooms) { %>
-			<%= room %>
+		<h3>Invitations</h3>
+		<% if (invitedRooms.length > 0) { %>
+			<% for (let room of invitedRooms) { %>
+				<a href="/r/<%= room._id %>"><div class="listitem"><%= room.name %> created by <%= room.ownerName %></div></a>
+		<% 	}
+		} else { %>
+			<p>No invitations.</p>
 		<% } %>
+
+		<h3>Your Rooms</h3>
+		<% if (ownedRooms.length > 0) { %>
+			<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>
+			<% for (let room of ownedRooms) { %>
+				<a href="/r/<%= room._id %>"><div class="listitem"><%= room.name %></div></a>
+		<% 	}
+		} else { %>
+			<p>No rooms.</p>
+			<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>
+		<% } %>
+
+		<h3>Rooms you have joined</h3>
+		<% if (joinedRooms.length > 0) { %>
+			<% for (let room of joinedRooms) { %>
+				<a href="/r/<%= room._id %>"><div class="listitem"><%= room.name %></div></a>
+		<% 	}
+		} else { %>
+			<p>No joined rooms.</p>
+		<% } %>
+	</div>
 </body>
 </html>
