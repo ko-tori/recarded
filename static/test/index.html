@@ -78,7 +78,6 @@ class TableCardRenderer {
 
 		this.wInterp = w;
 		this.hInterp = h;
-		console.log(w, h)
 		this.w = 100;
 		this.h = this.w / CARD_ASPECT;
 
@@ -296,7 +295,8 @@ var setCardParams = function() {
 
 var align = function() {
 	width = $(window).width();
-	height = $(window).height()
+	height = $(window).height();
+	
 	$('#canvas').attr("width", width)
 		.attr("height", height);
 
@@ -434,6 +434,24 @@ var render = function() {
 
 	ctx.clearRect(0, 0, width, height);
 
+	let r = Math.sqrt(2) * width / 2;
+	ctx.fillStyle = 'grey';
+	let tableW = width * 0.8;
+	let tableH = 0.9 * (height + width / 2 - r);
+	ctx.fillRect(width * 0.1, tableH * 0.05, tableW, tableH);
+
+	ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+	ctx.fillRect(width * 0.1, tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+	ctx.fillRect(width * 0.1, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+
 	// table rendering
 	ctx.save();
 	for (let group of table) {
@@ -516,7 +534,6 @@ var render = function() {
 	ctx.textAlign = 'left';
 	ctx.fillText('Play!', width - 190, height - 20);
 	ctx.restore();
-	
 
 	window.requestAnimationFrame(render);
 };

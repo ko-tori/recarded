@@ -16,6 +16,7 @@
   "dependencies": {
     "body-parser": "^1.19.0",
     "bufferutil": "^4.0.1",
+    "connect-mongo": "^3.2.0",
     "cookie-parser": "^1.4.5",
     "ejs": "^2.7.4",
     "express": "^4.17.1",
@@ -24,6 +25,7 @@
     "passport": "^0.4.1",
     "passport-local": "^1.0.0",
     "passport-local-mongoose": "^6.0.1",
+    "passport.socketio": "^3.7.0",
     "socket.io": "^2.3.0",
     "utf-8-validate": "^5.0.2"
   }

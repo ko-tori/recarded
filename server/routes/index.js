@@ -5,6 +5,8 @@ var fs = require("fs");
 var Account = require('../db/account');
 var Room = require('../db/room');
 
+module.exports = io => {
+
 router.get('/', function(req, res) {
 	res.render('index', { user: req.user });
 });
@@ -124,6 +126,8 @@ router.post('/newroom', async function(req, res) {
 		game: null
 	});
 
+	GameManager.newRoom(room, req.user);
+
 	for (let i of Object.values(invited)) {
 		i.invitedRooms.push(room._id);
 		i.save();
@@ -147,4 +151,6 @@ router.post('/newroom', async function(req, res) {
 	});
 });
 
-module.exports = router;
+return router;
+
+};
