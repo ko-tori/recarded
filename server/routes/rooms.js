@@ -18,47 +18,34 @@ router.get('/', async function(req, res) {
 
 var nsp = io.of('/rooms');
 
-//io.
-
-router.get('/owned', async function(req, res) {
-	if (!req.user) {
-		res.send({});
-		return;
-	}
-
-	let ownedRooms = (await Promise.all(req.user.ownedRooms.map(id => Room.findById(id)))).map(room => {
-		return {
-			name: room.name,
-			id: room._id
-		}
-	}).reverse();
-	
-	res.send(JSON.stringify(ownedRooms));
+nsp.on('connection', async function(socket) {
+	socket.emit('owned', await getOwned(socket.request.user));
+	socket.emit('joined', await getJoined(socket.request.user));
+	socket.emit('invited', await getInvited(socket.request.user));
 });
 
-router.get('/joined', async function(req, res) {
-	if (!req.user) {
-		res.send({});
-		return;
-	}
+async function getOwned(user) {
+	return (await Promise.all(user.ownedRooms.map(id => Room.findById(id))))
+		.map(room => {
+			return {
+				name: room.name,
+				id: room._id
+			}
+		}).reverse();
+}
 
-	let joinedRooms = (await Promise.all(req.user.joinedRooms.map(id => Room.findById(id)))).map(room => {
-		return {
-			name: room.name,
-			id: room._id
-		}
-	}).reverse();
-	
-	res.send(JSON.stringify(joinedRooms));
-});
+async function getJoined(user) {
+	return (await Promise.all(user.joinedRooms.map(id => Room.findById(id))))
+		.map(room => {
+			return {
+				name: room.name,
+				id: room._id
+			}
+		}).reverse();
+}
 
-router.get('/invited', async function(req, res) {
-	if (!req.user) {
-		res.send({});
-		return;
-	}
-
-	let invitedRooms = (await Promise.all(req.user.invitedRooms.map(id => Room.findById(id)))).reverse();
+async function getInvited(user) {
+	let invitedRooms = (await Promise.all(user.invitedRooms.map(id => Room.findById(id)))).reverse();
 	let inviters = await Promise.all(invitedRooms.map(room => Account.findById(room.owner)));
 
 	invitedRooms = invitedRooms.map((r, i) => {
@@ -68,9 +55,9 @@ router.get('/invited', async function(req, res) {
 			ownerName: inviters[i].username
 		}
 	});
-	
-	res.send(JSON.stringify(invitedRooms));
-});
+
+	return invitedRooms;
+}
 
 return router;
 
