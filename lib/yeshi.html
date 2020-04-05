@@ -92,15 +92,7 @@
             else {
                 cardCount[currentCard] = 1;
             }
-            //add(currentCard) //test print
         }
-		
-		/*
-        var testPrint; //prints cards and # of them played
-        for (testPrint in cardCount) {
-            add(testPrint + cardCount[testPrint]);
-		}
-		*/
         
 		var output = ""; //final output string
         for (var val in cardCount) {
@@ -109,7 +101,6 @@
             var count = cardCount[val]; //number of times card appears (ex. 2 for a pair)
             var isTrump = 0; //0 false, 1 true
 			var trumpType = "" //big or small
-			//add(val[0] + val[1] + declaredCard.suit + declaredCard.num + letters[declaredCard.num]) //test print
 			if (val[0] == declaredCard.suit && val[1] == letters[declaredCard.num]) { //big trump (suit and value match)
 				isTrump = 1;
 				trumpType = "Big "; //the space is intentional so I can use "trumpType + card" and have it be functional regardless of whether it has a trumpType or not 
@@ -140,13 +131,11 @@
 				toAdd = {'trump':isTrump, 'suit':val[0], 'suit2':currentSuit, 'letter':val[1], 'type':trumpType}
 				pairs.push(toAdd);
 			}
-			//add(toAdd.trump + " " + toAdd.suit + " " + toAdd.suit2 + " " + toAdd.num + " " + toAdd.letter + " " ); //test print
         }
 
 		//add singles to output first
 		var i;
 		for (i = 0; i < singles.length; i++){
-			//add(singles[i].suit + singles[i].letter); //test print
 			if (isTrump == 1) {
 				output += "Trump Single (" + singles[i].type + singles[i].letter + "), ";
 			}
@@ -161,12 +150,6 @@
 		if (getNum[a.letter] > getNum[b.letter]) return 1;
 		else return -1;
 		});
-		
-		/*
-		for (i = 0; i < pairs.length; i++){
-			add(pairs[i].suit + pairs[i].letter);
-		}
-		*/
 
 		//checking if tractors in pairs
 		var length; //length of the tractor sequence
@@ -174,7 +157,6 @@
 		for (i = 0; i < pairs.length; i++){
 			length = 0;
 			increment = 0;
-			//add(pairs[i].suit + pairs[i].letter + " " + letters[declaredCard.num]) //test print
 			var jokerFlag = 0; //0 if joker found, 1 if joker not found
 			//this block handles a big trump -> small joker tractor (and big trump -> small joker -> big joker)
 			if (pairs[i].type == "Big ") {//if card is a big trump, check if there are small and big jokers
@@ -264,12 +246,10 @@
 				}
 				i--; //decrement i one after to reset position after finding a tractor
 			}
-			//if (pairs.length == 0) break;
 		}
 
 		//add remaining pairs to the output
 		for (i = 0; i < pairs.length; i++){
-			//add(pairs[i].suit + pairs[i].letter);
 			if (pairs[i].trump == 1) {
 				output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
 			}
