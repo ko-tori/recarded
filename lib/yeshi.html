@@ -188,7 +188,6 @@
 				//while the next card is of the same suit and their value is 1 higher, add to the length of the tractor
 				while ((pairs[i].suit == pairs[i+length].suit) && //current suit and next suit must match
 				(getNum[pairs[i].letter]+length+increment) == getNum[pairs[i+length].letter]) { //and the values in getNum must match
-					//add(length + " " + pairs[i].suit + pairs[i].letter); //test print
 					length++;
 					if (i + length >= pairs.length) { //passed the end, exit loop
 						break;
