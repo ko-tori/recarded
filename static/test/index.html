@@ -60,6 +60,9 @@ cardBack.src = '/cards/back.png';
 var hovered;
 var selected = [];
 
+var buttonblur = 0;
+var buttonblurInterp = 0;
+
 const cardSorter = (a, b) => {
 	if (a.suit == b.suit) {
 		return numRanks[a.num] - numRanks[b.num];
@@ -68,10 +71,13 @@ const cardSorter = (a, b) => {
 };
 
 class TableCardRenderer {
-	constructor(group, i, img, x, y, rot0) {
+	constructor(group, i, img, w, h, x, y, rot0) {
 		this.group = group;
 		this.img = img;
 		this.i = i;
+
+		this.wInterp = w;
+		this.hInterp = h;
 		this.w = 100;
 		this.h = this.w / CARD_ASPECT;
 
@@ -97,7 +103,7 @@ class TableCardRenderer {
 		ctx.save();
 		ctx.translate(this.tableCenterX + this.x, this.tableCenterY + this.y);
 		ctx.rotate(this.rotInterp);
-		ctx.drawImage(this.flipped ? cardBack : this.img, -this.w / 2, -this.h / 2, this.w, this.h);
+		ctx.drawImage(this.flipped ? cardBack : this.img, -this.wInterp / 2, -this.hInterp / 2, this.wInterp, this.hInterp);
 		ctx.restore();
 
 		if (!this.flipped && this.hovered) {
@@ -108,7 +114,10 @@ class TableCardRenderer {
 			this.x += (this.xTarget - this.x) / 15;
 			this.y += (this.yTarget - this.y) / 15;
 			this.rotInterp += (this.rot - this.rotInterp) / 15;
-		}	
+		}
+
+		this.wInterp += (this.w - this.wInterp) / 15;
+		this.hInterp += (this.h - this.hInterp) / 15;
 	}
 
 	checkHit(x, y) {
@@ -261,7 +270,7 @@ var playCards = function(cards) {
 	}
 
 	for (let i = 0; i < cards.length; i++) {
-		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, ...cards[i].renderer.getPosRot());
+		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, cards[i].renderer.w, cards[i].renderer.h, ...cards[i].renderer.getPosRot());
 	}
 
 	if (table.length > 0) {
@@ -286,7 +295,8 @@ var setCardParams = function() {
 
 var align = function() {
 	width = $(window).width();
-	height = $(window).height()
+	height = $(window).height();
+	
 	$('#canvas').attr("width", width)
 		.attr("height", height);
 
@@ -424,6 +434,24 @@ var render = function() {
 
 	ctx.clearRect(0, 0, width, height);
 
+	let r = Math.sqrt(2) * width / 2;
+	ctx.fillStyle = 'grey';
+	let tableW = width * 0.8;
+	let tableH = 0.9 * (height + width / 2 - r);
+	ctx.fillRect(width * 0.1, tableH * 0.05, tableW, tableH);
+
+	ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+	ctx.fillRect(width * 0.1, tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+	ctx.fillRect(width * 0.1, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH * 0.05, tableW / 3, tableH / 2);
+
+	ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+
 	// table rendering
 	ctx.save();
 	for (let group of table) {
@@ -484,20 +512,28 @@ var render = function() {
 	}
 
 	ctx.save();
+	if (mouseX > width - 210 && mouseX < width - 10 && mouseY > height - 110 && mouseY < height - 10) {
+		buttonblur = 20;
+		$(canvas).addClass('pointer');
+	} else {
+		buttonblur = 0;
+		$(canvas).removeClass('pointer');
+	}
+
+	buttonblurInterp += (buttonblur - buttonblurInterp) / 30;
+	ctx.shadowBlur = buttonblurInterp;
+	ctx.shadowColor = 'green';
+
 	ctx.fillStyle = '#32cd32';
 	ctx.fillRect(width - 210, height - 110, 200, 100);
-	ctx.fillStyle = 'black';
+	ctx.restore();
+	ctx.save();
+	ctx.fillStyle = 'white';
 	ctx.font = 'bold 80px Calibri';
 	ctx.textBaseline = 'bottom';
 	ctx.textAlign = 'left';
 	ctx.fillText('Play!', width - 190, height - 20);
 	ctx.restore();
-
-	if (mouseX > width - 210 && mouseX < width - 10 && mouseY > height - 110 && mouseY < height - 10) {
-		$(canvas).addClass('pointer');
-	} else {
-		$(canvas).removeClass('pointer');
-	}
 
 	window.requestAnimationFrame(render);
 };

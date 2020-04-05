@@ -22,6 +22,7 @@
 			background-color: #DDD;
 		}
 	</style>
+	<script type="text/javascript" src="ext/socket.io.js"></script>
 </head>
 <body>
 	<%- include('header', {user: user}); %>
@@ -34,43 +35,48 @@
 		<div id='joinedList'></div>
 	</div>
 	<script type="text/javascript">
-		function fetchSameOrigin(url) {
-			return fetch(url, { credentials: 'same-origin' }).then(response => response.json());
-		}
+		var socket = io.connect('/rooms');
 
-		function loadInvitations() {
-			fetchSameOrigin('/rooms/invited').then(invitedRooms => {
-				//console.log(invitedRooms);
-				let contents = '';
-				if (invitedRooms.length > 0) {
-					for (let room of invitedRooms) {
-						contents += `<a href="/r/${room.id}"><div class="listitem">${room.name} created by ${room.ownerName}</div></a>`;
-					}
-				} else {
-					contents = '<p>No invitations.</p>';
+		socket.on('invited', invited => {
+			loadInvitations(invited);
+		});
+
+		socket.on('owned', owned => {
+			loadOwned(owned);
+		});
+
+		socket.on('joined', joined => {
+			loadJoined(joined);
+		});
+
+		var loadInvitations = invitedRooms => {
+			//console.log(invitedRooms);
+			let contents = '';
+			if (invitedRooms.length > 0) {
+				for (let room of invitedRooms) {
+					contents += `<a href="/r/${room.id}"><div class="listitem">${room.name} created by ${room.ownerName}</div></a>`;
 				}
-				document.getElementById('invitationList').innerHTML = contents;
-			});
-		}
+			} else {
+				contents = '<p>No invitations.</p>';
+			}
+			document.getElementById('invitationList').innerHTML = contents;
+		};
 
-		function loadOwned() {
-			fetchSameOrigin('/rooms/owned').then(ownedRooms => {
-				// console.log(ownedRooms);
-				let contents = '';
-				if (ownedRooms.length > 0) {
-					contents += '<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
-					for (let room of ownedRooms) {
-						contents += `<a href="/r/${room.id}"><div class="listitem">${room.name}</div></a>`;
-					}
-				} else {
-					contents = '<p>No rooms.</p><a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
+		var loadOwned = ownedRooms => {
+			// console.log(ownedRooms);
+			let contents = '';
+			if (ownedRooms.length > 0) {
+				contents += '<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
+				for (let room of ownedRooms) {
+					contents += `<a href="/r/${room.id}"><div class="listitem">${room.name}</div></a>`;
 				}
-				document.getElementById('ownedList').innerHTML = contents;
-			});
-		}
+			} else {
+				contents = '<p>No rooms.</p><a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
+			}
+			document.getElementById('ownedList').innerHTML = contents;
+		};
 
-		function loadJoined() {
-			fetchSameOrigin('/rooms/joined').then(joinedRooms => {
+		var loadJoined = joinedRooms => {
 				// console.log(joinedRooms);
 				let contents = '';
 				if (joinedRooms.length > 0) {
@@ -81,20 +87,7 @@
 					contents = '<p>No joined rooms.</p>';
 				}
 				document.getElementById('joinedList').innerHTML = contents;
-			});
-		}
-
-
-		window.addEventListener('pageshow', function() {
-			function loadStuff() {
-				loadInvitations();
-				loadOwned();
-				loadJoined();
-			};
-
-			setInterval(loadStuff, 2000);
-			loadStuff();
-		});		
+		};
 	</script>
 </body>
 </html>
