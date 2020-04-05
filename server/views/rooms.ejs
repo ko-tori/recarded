@@ -15,11 +15,13 @@
 			transition: all 0.5s;
 			display: inline-block;
 			font-weight: bold;
-			margin: 2px 2px;
+			margin: 2px 2px 4px;
+			border-radius: 10px;
 		}
 
 		#newroombutton:hover {
 			background-color: #DDD;
+			border-radius: 0px;
 		}
 	</style>
 	<script type="text/javascript" src="ext/socket.io.js"></script>
@@ -28,25 +30,48 @@
 	<%- include('header', {user: user}); %>
 	<div id="contents">
 		<h3>Invitations</h3>
-		<div id='invitationList'></div>
+		<div id='invitationList'>Loading...</div>
 		<h3>Your Rooms</h3>
-		<div id='ownedList'></div>
+		<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>
+		<div id='ownedList'>Loading...</div>
 		<h3>Rooms you have joined</h3>
-		<div id='joinedList'></div>
+		<div id='joinedList'>Loading...</div>
 	</div>
 	<script type="text/javascript">
 		var socket = io.connect('/rooms');
 
+		socket.on('connect', () => {
+			// console.log(socket.id);
+		});
+
 		socket.on('invited', invited => {
+			// console.log('loading invited', invited);
 			loadInvitations(invited);
 		});
 
 		socket.on('owned', owned => {
+			// console.log('loading owned', owned);
 			loadOwned(owned);
 		});
 
 		socket.on('joined', joined => {
+			// console.log('loading joined', joined);
 			loadJoined(joined);
+		});
+
+		socket.on('newInvite', room => {
+			let invList = document.getElementById('invitationList');
+			invList.innerHTML = `<a href="/r/${room.id}"><div class="listitem">${room.name} created by ${room.ownerName}</div></a>` + invList.innerHTML;
+		});
+
+		socket.on('newOwned', room => {
+			let ownedList = document.getElementById('ownedList');
+			ownedList.innerHTML = `<a href="/r/${room.id}"><div class="listitem">${room.name}</div></a>` + ownedList.innerHTML;
+		});
+
+		socket.on('newJoined', room => {
+			let joinedList = document.getElementById('joinedList');
+			joinedList.innerHTML = `<a href="/r/${room.id}"><div class="listitem">${room.name}</div></a>` + joinedList.innerHTML;
 		});
 
 		var loadInvitations = invitedRooms => {
@@ -66,12 +91,12 @@
 			// console.log(ownedRooms);
 			let contents = '';
 			if (ownedRooms.length > 0) {
-				contents += '<a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
+				contents += '';
 				for (let room of ownedRooms) {
 					contents += `<a href="/r/${room.id}"><div class="listitem">${room.name}</div></a>`;
 				}
 			} else {
-				contents = '<p>No rooms.</p><a href="/newroom" id="newroombuttonlink"><div id="newroombutton">Make a new room</div></a>';
+				contents = '<p>No rooms.</p>';
 			}
 			document.getElementById('ownedList').innerHTML = contents;
 		};

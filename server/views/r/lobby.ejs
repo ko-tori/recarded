@@ -1,6 +1,6 @@
-Welcome to room ${room.name}<br>
-Players: ${[owner.username].concat(members).join(', ')}<br>
-Invited: ${invited.join(', ')}<br>
+Welcome to room <%= room.name %><br>
+Players: <%= [owner.username].concat(members).join(', ') %><br>
+Invited: <%= invited.join(', ') %><br>
 <form action='.' method='post'>
 <input type='submit' value='Start'>
 </form>

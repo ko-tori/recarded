@@ -1,11 +1,12 @@
+module.exports = io => {
+
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
 var fs = require("fs");
 var Account = require('../db/account');
 var Room = require('../db/room');
-
-module.exports = io => {
+var RoomManager = require('../RoomManager')(io);
 
 router.get('/', function(req, res) {
 	res.render('index', { user: req.user });
@@ -115,19 +116,13 @@ router.post('/newroom', async function(req, res) {
 		invited[invitedN] = i;
 	}
 
-	const room = new Room({
-		name: req.body.name,
-		owner: req.user._id,
-		members: [],
-		invited: Object.values(invited).map(i => i._id),
-		inviteOnly: Boolean(req.body.inviteOnly),
-		password: req.body.password,
-		status: "lobby",
-		game: null
-	});
-
-	GameManager.newRoom(room, req.user);
-
+	const room = await RoomManager.initNewRoom(
+		req.body.name,
+		req.user,
+		Object.values(invited).map(i => i._id),
+		Boolean(req.body.inviteOnly),
+		req.body.password);
+	
 	for (let i of Object.values(invited)) {
 		i.invitedRooms.push(room._id);
 		i.save();

@@ -266,6 +266,7 @@
         out.innerHTML += `<p>${s}</p>`;
     }
 
+    var start = window.performance.now();
     
     // The outputs are just examples, just make them consistent and readable
     var cards1 = [new Card('C', 1), new Card('C', 1)];
@@ -330,6 +331,8 @@
 
     var cards20 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3), new Card('S', 7), new Card('S', 7)];
     add(analyzeHand(cards20, new Card('S',4))); //Trump Pentuple Tractor (2-3-5-6-7)
+
+    console.log('time:', window.performance.now() - start);
 
 </script>
 </body>

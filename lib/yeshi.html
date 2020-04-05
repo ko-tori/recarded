@@ -38,7 +38,7 @@
 
 	function returnOther(num) {
 		var listVal = [];
-			console.log(num);
+			// console.log(num);
 		for (i = 1; i < 4; i++) {
 			if (num + 13 * i < 52){
 				listVal.push(num + 13 * i );
@@ -47,7 +47,7 @@
 				listVal.push(num - 13 * i );
 			}
 		}
-		console.log(listVal);
+		// console.log(listVal);
 		return listVal;
 	}
 
@@ -75,7 +75,7 @@
 			
 		trumpNum += declaredCard.num - 1;
 			
-		//console.log(trumpNum);
+		// console.log(trumpNum);
 		
 		for (i = 0; i < cards.length; i++) {
 			var temp = 0;
@@ -97,7 +97,7 @@
 			cTrack[temp] += 1;
 
 		}
-		console.log(cTrack);
+		// console.log(cTrack);
 		//check for big declared J1 J2 tractors
 		if(cTrack[trumpNum] == 2) {
 			if(cTrack[52] == 2) {
@@ -200,7 +200,7 @@
 			prefixTacker = 0;
 			holder = "";
 			if (x == Math.floor(trumpNum/13)) {
-				console.log("reeee");
+				// console.log("reeee");
 				x++;		
 				if (x == 4) {
 					break;
@@ -266,6 +266,8 @@
 		out.innerHTML += `<p>${s}</p>`;
 	}
 
+	var start = window.performance.now();
+
 	// The outputs are just examples, just make them consistent and readable
 	var cards1 = [new Card('C', 1), new Card('C', 1)];
 	add(analyzeHand(cards1, new Card('S', 2))); // Clubs Pair (A)
@@ -302,7 +304,35 @@
 	var cards11 = [new Card('H', 5), new Card('H', 5), new Card('H', 6), new Card('H', 6)];
 	add(analyzeHand(cards11, new Card('H', 5))); // Trump Pair (Big 5), Trump Pair (6)
 
+	//josh's additional tests
+    var cards12 = [new Card('J', 1), new Card('J', 1), new Card('D', 4), new Card('D', 4)];
+    add(analyzeHand(cards12, new Card('D', 4))); // Trump Tractor (Big 4-Small Joker)
 
+    var cards13 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3)];
+    add(analyzeHand(cards13, new Card('H',6))); //Spades Quadruple Tractor (2-3-4-5)
+
+    var cards14 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3)];
+    add(analyzeHand(cards14, new Card('H',5))); //Spades Triple Tractor (2-3-4), Trump Pair (Small 5)
+
+    var cards15 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3)];
+    add(analyzeHand(cards15, new Card('S',5))); //Trump Triple Tractor (2-3-4), Trump Pair (Big 5)
+
+    var cards16 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3), new Card('H', 5), new Card('H', 5), new Card('H', 3), new Card('H', 3), new Card('H', 4), new Card('H', 4), new Card('H', 2), new Card('H', 2)];
+    add(analyzeHand(cards16, new Card('D',7))); ///Spades Quadruple Tractor (2-3-4-5), Hearts Quadruple Tractor (2-3-4-5)
+
+    var cards17 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3), new Card('H', 5), new Card('H', 5), new Card('H', 3), new Card('H', 3), new Card('H', 4), new Card('H', 4), new Card('H', 2), new Card('H', 2)];
+    add(analyzeHand(cards17, new Card('H',7))); ///Spades Quadruple Tractor (2-3-4-5), sTrump Quadruple Tractor (2-3-4-5)
+
+    var cards18 = [new Card('S', 2), new Card('S', 5), new Card('S', 2), new Card('S', 4), new Card('S', 5), new Card('S', 4), new Card('S', 3), new Card('S', 3), new Card('H', 5), new Card('H', 5), new Card('H', 3), new Card('H', 3), new Card('H', 4), new Card('H', 4), new Card('H', 2), new Card('H', 2)];
+    add(analyzeHand(cards18, new Card('H',5))); ///Spades Triple Tractor (2-3-4), Trump Triple Tractor (2-3-4), Trump Pair (Big 5), Trump pair (Small 5)
+
+    var cards19 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3)];
+    add(analyzeHand(cards19, new Card('H',4))); //Spades Quadruple Tractor (2-3-5-6)
+
+    var cards20 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3), new Card('S', 7), new Card('S', 7)];
+    add(analyzeHand(cards20, new Card('S',4))); //Trump Pentuple Tractor (2-3-5-6-7)
+
+    console.log('time:', window.performance.now() - start);
 </script>
 </body>
 </html>

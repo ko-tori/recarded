@@ -10,7 +10,7 @@ var Room = new Schema({
     password: String,
     inviteOnly: Boolean,
     status: String, // lobby, started, finished
-    game: mongoose.Schema.Types.ObjectId
+    game: Object
 });
 
 module.exports = mongoose.model('Room', Room);
