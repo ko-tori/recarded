@@ -62,7 +62,7 @@ router.get("/:id", async function (req, res) {
 		let members = (await Promise.all(room.members.map(m => Account.findById(m)))).map(m => m.username);
 		let invited = (await Promise.all(room.invited.map(m => Account.findById(m)))).map(m => m.username);
 
-		res.render('r/lobby', { room: room, owner: owner, members: members, invited: invited });
+		res.render('game', { room: room, owner: owner, members: members, invited: invited });
 	} else if (room.status == 'started') {
 
 	} else {
