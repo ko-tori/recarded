@@ -3,23 +3,25 @@
 <head>
 	<title>Card UI Test</title>
 	<style type="text/css">
+		@import url('https://fonts.googleapis.com/css?family=Titillium+Web');
+
 		canvas {
 			top: 0;
 			left: 0;
 		}
 
 		body {
+			font-family: 'Titillium Web', sans-serif;
 			margin: 0;
 			overflow: hidden;
 			user-select: none;
 		}
 		#test {
 			position: absolute;
-			margin-top: 20px;
-			text-align: center;
-			width: 100%;
-			font-family: Calibri;
-			font-size: 1em;
+			bottom: 120px;
+			right: 10px;
+			text-align: right;
+			font-size: 2em;
 			font-weight: bold;
 		}
 
@@ -32,16 +34,16 @@
 <body>
 <div id='test'></div>
 <canvas id='canvas'></canvas>
-
+<script type="text/javascript" src="/lib.js"></script>
 <script type="text/javascript">
-const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
-const numRanks = [0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades', 'J': 'Joker'};
-const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3, 'J': 4};
+const fileLetters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 var deck = [];
 var hand = [];
 var table = [];
+
+var declaredCard;
+
+var playerNames = ['ああああああああああああああああ', 'プレーヤー・トゥー', 'Player 3', 'Player 4'];
 
 var width = 0;
 var height = 0;
@@ -49,7 +51,7 @@ var height = 0;
 var mouseX = 0;
 var mouseY = 0;
 
-const HAND_SIZE = Math.floor(Math.random() * 40) + 10;
+const HAND_SIZE = 30;//Math.floor(Math.random() * 40) + 10;
 const CARD_WIDTH_PX = 691;
 const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
@@ -63,15 +65,10 @@ var selected = [];
 var buttonblur = 0;
 var buttonblurInterp = 0;
 
-const cardSorter = (a, b) => {
-	if (a.suit == b.suit) {
-		return numRanks[a.num] - numRanks[b.num];
-	}
-	return suitRanks[a.suit] - suitRanks[b.suit];
-};
+var tableDim;
 
 class TableCardRenderer {
-	constructor(group, i, img, w, h, x, y, rot0) {
+	constructor(group, i, img, w, h, x, y, rot0, playCenterX, playCenterY) {
 		this.group = group;
 		this.img = img;
 		this.i = i;
@@ -81,48 +78,64 @@ class TableCardRenderer {
 		this.w = 100;
 		this.h = this.w / CARD_ASPECT;
 
-		this.tableCenterX = width / 2;
-		this.tableCenterY = height / 3;
+		this.playCenterX = playCenterX;
+		this.playCenterY = playCenterY;
+		this.tableCenterX = playCenterX();
+		this.tableCenterY = playCenterY();
 		this.x = x - this.tableCenterX;
 		this.y = y - this.tableCenterY;
 		this.xTarget = Math.random() * 50 - 25 + (this.i - (group.length - 1) / 2) * 20;
 		this.yTarget = Math.random() * 50 - 25;
 
-		this.rot = (Math.random() * 90 - 45) * Math.PI / 180;
+		this.rot = rot0 + (Math.random() * 1 - 0.5) * Math.PI / 2;
 		this.rotInterp = rot0;
 		this.flipped = false;
 
 		this.hovered = false;
-		this.hoveredX = (this.i - (group.length - 1) / 2) * 110;
+		this.hoveredX = (this.i - (group.length - 1) / 2) * 160;
 		this.hoveredY = 0;
+
+		this.textAlphaInterp = 0;
+		this.textAlpha = 0;
 	}
 
 	render(ctx) {
-		this.tableCenterX = width / 2;
-		this.tableCenterY = height / 3;
 		ctx.save();
 		ctx.translate(this.tableCenterX + this.x, this.tableCenterY + this.y);
 		ctx.rotate(this.rotInterp);
 		ctx.drawImage(this.flipped ? cardBack : this.img, -this.wInterp / 2, -this.hInterp / 2, this.wInterp, this.hInterp);
 		ctx.restore();
 
+		ctx.font = '1.5em Titillium Web';
+		ctx.fillStyle = `rgba(0, 0, 0, ${this.textAlphaInterp}`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		ctx.fillText(analyzeHand(this.group, declaredCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+
 		if (!this.flipped && this.hovered) {
 			this.x += (this.hoveredX - this.x) / 15;
 			this.y += (this.hoveredY - this.y) / 15;
 			this.rotInterp += (-this.rotInterp) / 15;
+			this.w = 150;
+			this.h = 150 / CARD_ASPECT;
+			this.textAlpha = 1;
 		} else {
 			this.x += (this.xTarget - this.x) / 15;
 			this.y += (this.yTarget - this.y) / 15;
 			this.rotInterp += (this.rot - this.rotInterp) / 15;
+			this.w = 100;
+			this.h = 100 / CARD_ASPECT;
+			this.textAlpha = 0;
 		}
 
 		this.wInterp += (this.w - this.wInterp) / 15;
 		this.hInterp += (this.h - this.hInterp) / 15;
+		this.textAlphaInterp += (this.textAlpha - this.textAlphaInterp) / 15;
 	}
 
 	checkHit(x, y) {
-		x -= this.x - this.tableCenterX;
-		y -= this.y - this.tableCenterY;
+		x -= this.x + this.tableCenterX;
+		y -= this.y + this.tableCenterY;
 
 		[x, y] = [x * Math.cos(-this.rotInterp) - y * Math.sin(-this.rotInterp),
 				x * Math.sin(-this.rotInterp) + y * Math.cos(-this.rotInterp)];
@@ -140,6 +153,11 @@ class TableCardRenderer {
 
 		return x > -this.w / 2 && x < this.w / 2 &&
 			y > -this.h / 2 && y < this.h / 2;
+	}
+
+	setRendererParams(params) {
+		this.tableCenterX = this.playCenterX();
+		this.tableCenterY = this.playCenterY();
 	}
 }
 
@@ -226,21 +244,21 @@ class HandCardRenderer {
 	}
 
 	calcRot() {
-		this.rot = (this.i - (this.n - 1) / 2) / this.n * 45 * Math.PI / 180;
+		this.rot = (this.i - (this.n - 1) / 2) / this.n * Math.PI / 6;
 	}
 }
 
 class Card {
-	constructor(num, suit, img) {
-		this.num = num;
+	constructor(suit, num, img) {
 		this.suit = suit;
+		this.num = num;
 		this.img = img;
 
 		this.renderer = new HandCardRenderer(img);
 	}
 
 	toString() {
-		return letters[this.num] + this.suit;
+		return fileLetters[this.num] + this.suit;
 	}
 
 	toLongString() {
@@ -270,7 +288,7 @@ var playCards = function(cards) {
 	}
 
 	for (let i = 0; i < cards.length; i++) {
-		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, cards[i].renderer.w, cards[i].renderer.h, ...cards[i].renderer.getPosRot());
+		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, cards[i].renderer.w, cards[i].renderer.h, ...cards[i].renderer.getPosRot(), () => tableDim[0] + tableDim[2] / 2, () => tableDim[1] + 3 * tableDim[3] / 4);
 	}
 
 	if (table.length > 0) {
@@ -284,18 +302,28 @@ var playCards = function(cards) {
 };
 
 var setCardParams = function() {
-	let r = Math.sqrt(2) * width / 2;
-	let cardH = r - width / Math.sqrt(3);
+	let r = width * 0.65;// / 2 * Math.sqrt(2);
+	let cardH = r - width * Math.sin(32 * Math.PI / 180);
 	let cardW = cardH * CARD_ASPECT;
 
 	for (let i = 0; i < hand.length; i++) {
 		hand[i].setRendererParams(i, hand.length, r, cardW, cardH);
+	}
+
+	for (let group of table) {
+		for (let card of group) {
+			card.setRendererParams();
+		}
 	}
 };
 
 var align = function() {
 	width = $(window).width();
 	height = $(window).height();
+
+	let r = width * 0.65;
+	let tableH = 0.9 * (height + width / 2 - r);
+	tableDim = [width * 0.125, tableH * 0.05, width * 0.75, tableH];
 	
 	$('#canvas').attr("width", width)
 		.attr("height", height);
@@ -312,16 +340,16 @@ var mouseMoveListener = function(e) {
 
 addEventListener('mousemove', mouseMoveListener);
 
-var mouseDownListener = function(e) {
-	if (hovered) {
+// var mouseDownListener = function(e) {
+// 	if (hovered) {
 		
-		//removeCard(hand.indexOf(hovered));
-	} else {
-		//document.getElementById('test').innerHTML = 'No card selected';
-	}
-};
+// 		//removeCard(hand.indexOf(hovered));
+// 	} else {
+// 		//document.getElementById('test').innerHTML = 'No card selected';
+// 	}
+// };
 
-addEventListener('mousedown', mouseDownListener);
+// addEventListener('mousedown', mouseDownListener);
 
 var clickListener = function(e) {
 	if (hovered) {
@@ -347,7 +375,7 @@ var clickListener = function(e) {
 		selected = [];
 	}
 
-	document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
+	document.getElementById('test').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
 };
 
 addEventListener('click', clickListener);
@@ -361,7 +389,7 @@ var contextMenuListener = function(e) {
 			selected.splice(i, 1);
 		}
 		
-		document.getElementById('test').innerHTML = selected.map(s => s.toLongString()).join('<br>');
+		document.getElementById('test').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
 	} else {
 		
 	}
@@ -383,26 +411,30 @@ var init = function(callback) {
 	let i = new Image;
 	i.src = '/cards/J1.png';
 	i.onload = finish;
-	deck.push(new Card('1', 'J', i));
-	deck.push(new Card('1', 'J', i));
+	deck.push(new Card('J', 1, i));
+	deck.push(new Card('J', 1, i));
 
 	i = new Image;
 	i.src = '/cards/J2.png';
 	i.onload = finish;
-	deck.push(new Card('2', 'J', i));
-	deck.push(new Card('2', 'J', i));
+	deck.push(new Card('J', 2, i));
+	deck.push(new Card('J', 2, i));
 
 	for (let suit of ['C', 'D', 'H', 'S']) {
 		for (let n = 1; n <= 13; n++) {
 			let i = new Image;
-			i.src = '/cards/' + letters[n] + suit + '.png';
+			i.src = '/cards/' + fileLetters[n] + suit + '.png';
 			i.onload = finish;
-			deck.push(new Card(n, suit, i));
-			deck.push(new Card(n, suit, i));
+			deck.push(new Card(suit, n, i));
+			deck.push(new Card(suit, n, i));
+
+			if (suit == 'C' && n == 2) {
+				declaredCard = deck[deck.length - 1];
+			}
 		}
 	}
 
-	deck.sort(() => 0.5 - Math.random());
+	//deck.sort(() => 0.5 - Math.random());
 	hand = deck.slice(0, HAND_SIZE);
 };
 
@@ -434,23 +466,45 @@ var render = function() {
 
 	ctx.clearRect(0, 0, width, height);
 
-	let r = Math.sqrt(2) * width / 2;
-	ctx.fillStyle = 'grey';
-	let tableW = width * 0.8;
-	let tableH = 0.9 * (height + width / 2 - r);
-	ctx.fillRect(width * 0.1, tableH * 0.05, tableW, tableH);
+	// player ui testing
+	ctx.save();
 
-	ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-	ctx.fillRect(width * 0.1, tableH * 0.05, tableW / 3, tableH / 2);
+	ctx.strokeStyle = '#DDD';
+	let [tableX, tableY, tableW, tableH] = tableDim;
 
-	ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-	ctx.fillRect(width * 0.1, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+	// ctx.strokeRect(tableX, tableY, tableW, tableH);
 
-	ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH * 0.05, tableW / 3, tableH / 2);
+	ctx.strokeRect(tableX + tableW / 3, tableY + tableH / 2, tableW / 3, tableH / 2);
+	
+	// ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+	ctx.strokeRect(tableX, tableY, tableW / 3, tableH / 2);
 
-	ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-	ctx.fillRect(width * 0.1 + 2 * tableW / 3, tableH / 2 + tableH * 0.05, tableW / 3, tableH / 2);
+	// ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+	ctx.strokeRect(tableX, tableH / 2 + tableY, tableW / 3, tableH / 2);
+
+	// ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+	ctx.strokeRect(tableX + 2 * tableW / 3, tableY, tableW / 3, tableH / 2);
+
+	// ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+	ctx.strokeRect(tableX + 2 * tableW / 3, tableH / 2 + tableY, tableW / 3, tableH / 2);
+
+	// ctx.beginPath();
+	// let r = width * 0.65;
+	// ctx.ellipse(width / 2, height + width / 2, r, r, 0, 0, Math.PI * 2);
+	// ctx.stroke();
+
+	// player names
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = 'black';
+	ctx.font = `bold ${tableH / 16}px 'Titillium Web'`;
+	ctx.textAlign = 'end';
+	ctx.fillText(playerNames[0], tableX - 5, tableY + tableH / 4, tableX - 10);
+	ctx.fillText(playerNames[1], tableX - 5, tableY + 3 * tableH / 4, tableX - 10);
+	ctx.textAlign = 'start';
+	ctx.fillText(playerNames[2], tableX + tableW + 5, tableY + tableH / 4, tableX - 10);
+	ctx.fillText(playerNames[3], tableX + tableW + 5, tableY + 3 * tableH / 4, tableX - 10);
+
+	ctx.restore();
 
 	// table rendering
 	ctx.save();
@@ -477,6 +531,7 @@ var render = function() {
 
 	// hand rendering
 	ctx.save();
+	ctx.textBaseline = 'top';
 	ctx.fillText('Left click to select, right click to delete, refresh to draw a random hand', 10, 10);
 	ctx.fillStyle = 'black';
 	
@@ -488,9 +543,9 @@ var render = function() {
 
 	ctx.restore();
 
-	let flag = false;
+	let pointer = false;
 	for (let i = hand.length - 1; i >= 0; i--) {
-		if (flag) {
+		if (pointer) {
 			hand[i].renderer.hovered = false;
 			continue;
 		}
@@ -499,24 +554,27 @@ var render = function() {
 		if (hit) {
 			hovered = hand[i];
 			hand[i].renderer.hovered = true;
-			$(canvas).addClass('pointer');
-			flag = true;
+			pointer = true;
 		} else {
 			hand[i].renderer.hovered = false;
 		}
 	}
 
-	if (!flag) {
-		$(canvas).removeClass('pointer');
+	if (!pointer) {
 		hovered = undefined;
 	}
 
 	ctx.save();
 	if (mouseX > width - 210 && mouseX < width - 10 && mouseY > height - 110 && mouseY < height - 10) {
 		buttonblur = 20;
-		$(canvas).addClass('pointer');
+		pointer = true;
 	} else {
 		buttonblur = 0;
+	}
+
+	if (pointer) {
+		$(canvas).addClass('pointer');
+	} else {
 		$(canvas).removeClass('pointer');
 	}
 
@@ -529,10 +587,10 @@ var render = function() {
 	ctx.restore();
 	ctx.save();
 	ctx.fillStyle = 'white';
-	ctx.font = 'bold 80px Calibri';
+	ctx.font = 'bold 75px Titillium Web';
 	ctx.textBaseline = 'bottom';
 	ctx.textAlign = 'left';
-	ctx.fillText('Play!', width - 190, height - 20);
+	ctx.fillText('Play!', width - 185, height - 20);
 	ctx.restore();
 
 	window.requestAnimationFrame(render);

@@ -17,7 +17,11 @@ router.get('/register', function(req, res) {
 });
 
 router.post('/register', function(req, res, next) {
-	Account.register(new Account({ username: req.body.username.trim(), rooms: [] }), req.body.password.trim(), function(err, account) {
+	if (req.body.username.trim().length > 16) {
+		return res.render('register', { error: "Please limit your username to 16 characters" });
+	}
+	
+	Account.register(new Account({ username: req.body.username.trim() }), req.body.password.trim(), function(err, account) {
 		if (err) {
 			return res.render('register', { error: err.message });
 		}
