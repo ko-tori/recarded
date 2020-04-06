@@ -191,7 +191,7 @@ function analyzeHand(cards, declaredCard) {
 				i++;
 			}
 			if (cTrack[i] == 1) {
-				singleName += ", " + numToSuit[x] + " Single ( " + letters[(i%13 + 1)] + ")"; 
+				singleName += ", " + numToSuit[x] + " Single (" + letters[(i%13 + 1)] + ")"; 
 			}
 			if (cTrack[i] == 2) {
 				if(i % 13 == 0 && cTrack[i + 12] == 2) {
@@ -254,7 +254,7 @@ function actualRanks(card) {
 			}
 		} else if (card.num == declaredCard.num) {
 			actualSuitRank = 4;
-			actualNumRank = 15;
+			actualNumRank = 15 + suitRanks[card.suit] / 4;
 		}
 	} else {
 		actualNumRank = -actualNumRank;

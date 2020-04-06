@@ -22,7 +22,7 @@
 			right: 10px;
 			text-align: right;
 			font-size: 2em;
-			font-weight: bold;
+			/*font-weight: bold;*/
 		}
 
 		.pointer {
@@ -41,9 +41,21 @@ var deck = [];
 var hand = [];
 var table = [];
 
+// game information vars (placeholders for now)
 var declaredCard;
 
 var playerNames = ['ああああああああああああああああ', 'プレーヤー・トゥー', 'Player 3', 'Player 4'];
+var playerTeams = ['?', '?', '?', '?'];
+var playerPoints = [0, 0, 0, 0, 0];
+
+var playerPosition = Math.floor(Math.random() * 5);
+playerNames.splice(playerPosition, 0, 'testplayer123');
+
+playerTeams.splice(Math.floor(Math.random() * 5), 0, 'Defending');
+
+var friendCard;
+
+// other vars for rendering
 
 var width = 0;
 var height = 0;
@@ -106,7 +118,7 @@ class TableCardRenderer {
 		ctx.drawImage(this.flipped ? cardBack : this.img, -this.wInterp / 2, -this.hInterp / 2, this.wInterp, this.hInterp);
 		ctx.restore();
 
-		ctx.font = '1.5em Titillium Web';
+		ctx.font = '24px Titillium Web';
 		ctx.fillStyle = `rgba(0, 0, 0, ${this.textAlphaInterp}`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'top';
@@ -178,8 +190,10 @@ class HandCardRenderer {
 
 	render(ctx) {
 		let [i, n, r, w, h] = [this.i, this.n, this.r, this.w, this.h];
-		if (this.hovered || this.selected) {
+		if (this.selected) {
 			this.targetOffY = -h / 5;
+		} else if (this.hovered) {
+			this.targetOffY = -h / 7;
 		} else {
 			this.targetOffY = 0;
 		}
@@ -279,7 +293,19 @@ class Card {
 	setRendererParams() {
 		this.renderer.setRendererParams(arguments);
 	}
+
+	equals(other) {
+		return this.suit == other.suit && this.num == other.num;
+	}
 }
+
+var drawUserInfo = function(ctx, name, team, points, size, align, x, y, maxW) {
+	ctx.font = `${size}px 'Titillium Web'`;
+	ctx.textAlign = align;
+	ctx.fillText(name, x, y - size, maxW);
+	ctx.fillText("Team: " + team, x, y, maxW);
+	ctx.fillText("Points: " + points, x, y + size, maxW);
+};
 
 var playCards = function(cards) {
 	cards.sort(cardSorter);
@@ -323,7 +349,7 @@ var align = function() {
 
 	let r = width * 0.65;
 	let tableH = 0.9 * (height + width / 2 - r);
-	tableDim = [width * 0.125, tableH * 0.05, width * 0.75, tableH];
+	tableDim = [width * 0.15, tableH * 0.05, width * 0.7, tableH];
 	
 	$('#canvas').attr("width", width)
 		.attr("height", height);
@@ -427,15 +453,30 @@ var init = function(callback) {
 			i.onload = finish;
 			deck.push(new Card(suit, n, i));
 			deck.push(new Card(suit, n, i));
-
-			if (suit == 'C' && n == 2) {
-				declaredCard = deck[deck.length - 1];
-			}
 		}
 	}
 
-	//deck.sort(() => 0.5 - Math.random());
+	friendCard = deck[Math.floor(Math.random() * deck.length)];
+
+	declaredCard = deck[Math.floor(Math.random() * deck.length)]
+	while (declaredCard.suit == 'J') {
+		declaredCard = deck[Math.floor(Math.random() * deck.length)];
+	}
+
+	deck.sort(() => 0.5 - Math.random());
 	hand = deck.slice(0, HAND_SIZE);
+
+	let flag = true;
+	for (let card of hand) {
+		if (card.equals(friendCard)) {
+			flag = false;
+			break;
+		}
+	}
+
+	if (flag) {
+		playerTeams[playerPosition] = 'Attacking';
+	}
 };
 
 var updateHandPositions = function() {
@@ -493,20 +534,45 @@ var render = function() {
 	// ctx.ellipse(width / 2, height + width / 2, r, r, 0, 0, Math.PI * 2);
 	// ctx.stroke();
 
-	// player names
-	ctx.textBaseline = 'middle';
+
+	ctx.textBaseline = 'top';
 	ctx.fillStyle = 'black';
-	ctx.font = `bold ${tableH / 16}px 'Titillium Web'`;
+	ctx.textAlign = 'center';
+	ctx.font = `${tableH / 32}px Titillium Web`;
+
+	ctx.fillText('Declared Card', tableX + 4 * tableW / 9, tableY + tableH / 32);
+	ctx.drawImage(declaredCard.img, tableX + 4 * tableW / 9 - tableH / 16, tableY + tableH / 12, tableH / 8, tableH / 8 / CARD_ASPECT);
+
+	ctx.fillText('Friend Card', tableX + 5 * tableW / 9, tableY + tableH / 32);
+	ctx.drawImage(friendCard.img, tableX + 5 * tableW / 9 - tableH / 16, tableY + tableH / 12, tableH / 8, tableH / 8 / CARD_ASPECT);
+
+	// player names
 	ctx.textAlign = 'end';
-	ctx.fillText(playerNames[0], tableX - 5, tableY + tableH / 4, tableX - 10);
-	ctx.fillText(playerNames[1], tableX - 5, tableY + 3 * tableH / 4, tableX - 10);
+	drawUserInfo(ctx, playerNames[(3 + playerPosition) % 5], playerTeams[(3 + playerPosition) % 5], playerPoints[(3 + playerPosition) % 5], tableH / 16, 'end', tableX - 5, tableY + tableH / 4, tableX - 10);
+	drawUserInfo(ctx, playerNames[(4 + playerPosition) % 5], playerTeams[(4 + playerPosition) % 5], playerPoints[(4 + playerPosition) % 5], tableH / 16, 'end', tableX - 5, tableY + 3 * tableH / 4, tableX - 10);
+
 	ctx.textAlign = 'start';
-	ctx.fillText(playerNames[2], tableX + tableW + 5, tableY + tableH / 4, tableX - 10);
-	ctx.fillText(playerNames[3], tableX + tableW + 5, tableY + 3 * tableH / 4, tableX - 10);
+	drawUserInfo(ctx, playerNames[(2 + playerPosition) % 5], playerTeams[(2 + playerPosition) % 5], playerPoints[(2 + playerPosition) % 5], tableH / 16, 'start', tableX + tableW + 5, tableY + tableH / 4, tableX - 10);
+	drawUserInfo(ctx, playerNames[(1 + playerPosition) % 5], playerTeams[(1 + playerPosition) % 5], playerPoints[(1 + playerPosition) % 5], tableH / 16, 'start', tableX + tableW + 5, tableY + 3 * tableH / 4, tableX - 10);
+	drawUserInfo(ctx, playerNames[playerPosition], playerTeams[playerPosition], playerPoints[playerPosition], tableH / 14, 'start', 10, height - tableH / 7 - 20);
 
 	ctx.restore();
 
-	// table rendering
+	// hand rendering
+	ctx.save();
+	// ctx.textBaseline = 'top';
+	// ctx.fillText('Left click to select, right click to delete, refresh to draw a random hand', 10, 10);
+	ctx.fillStyle = 'black';
+	
+	ctx.translate(width / 2, height + width / 2);
+	
+	for (let i = 0; i < hand.length; i++) {
+		hand[i].render(ctx);
+	}
+
+	ctx.restore();
+
+	// cards on table rendering
 	ctx.save();
 	for (let group of table) {
 		for (let card of group) {
@@ -529,19 +595,7 @@ var render = function() {
 		}
 	}
 
-	// hand rendering
-	ctx.save();
-	ctx.textBaseline = 'top';
-	ctx.fillText('Left click to select, right click to delete, refresh to draw a random hand', 10, 10);
-	ctx.fillStyle = 'black';
-	
-	ctx.translate(width / 2, height + width / 2);
-	
-	for (let i = 0; i < hand.length; i++) {
-		hand[i].render(ctx);
-	}
-
-	ctx.restore();
+	// hit detection
 
 	let pointer = false;
 	for (let i = hand.length - 1; i >= 0; i--) {
