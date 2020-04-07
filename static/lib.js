@@ -93,11 +93,11 @@ function analyzeHand(cards, declaredCard) {
 				pairName += "Trump Tractor (Small Joker-Big Joker)";
 			}
 			else {
-				singleName += "Trump Pair (Big Joker)";
+				pairName += "Trump Pair (Big Joker)";
 			}
 		}
 		else if(cTrack[52] == 2){
-			singleName += "Trump Pair (Small Joker)";
+			pairName += "Trump Pair (Small Joker)";
 		}
 	}	
 	if(cTrack[trumpNum] == 1){
