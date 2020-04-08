@@ -13,7 +13,7 @@
 	const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3, 'J': 4};
 	const playerdeckdict = { 5 : { 2: 20 } };
 	const Phases = ["Draw", "Bottom", "Play", "Score"];
-	const adjectives = ["","","","Triple ", "Quadruple ", "Quintiple ", "Sextuple ", "Septuple ", "Octuple ", "Nonuple ", "Decuple "]
+	const adjectives = ["","","","Triple ", "Quadruple ", "Quintuple ", "Sextuple ", "Septuple ", "Octuple ", "Nonuple ", "Decuple "]
 
 	// You can use the above to help make readable output
 
@@ -334,9 +334,11 @@
 
 	// returns true if handPlayed beats handToBeat and false otherwise
 	function validator(handToBeat, handPlayed, declaredCard) {
+		console.log(handToBeat, handPlayed);
 		// get hands in form dict={type, suit, [values]}
 		var htb = handClassifier(handToBeat, declaredCard);
 		var hp = handClassifier(handPlayed, declaredCard);
+		console.log(hp, htb)
 		hp["values"].sort();
 		htb["values"].sort();
 
@@ -349,6 +351,7 @@
 		}
 
 		else if ((hp["suit"] == "T") && (htb["suit"] != "T")) {
+			
 			return true; // trumped by a hand of the same form
 		}
 
@@ -431,6 +434,16 @@
 		var htb4 = [new Card("D", 3), new Card("D", 3), new Card("D", 4), new Card("D", 4)];  // 3-3-4-4 of D
 		var hp4 = [new Card("D", 9), new Card("D", 9), new Card("D", 11), new Card("D", 11)]; // 9-9-J-J of D
 		test(validator(htb4, hp4, new Card("S", 2)), false, "weird4");
+
+		// test trumping multiple
+		var htb5 = [new Card("D", 14), new Card("D", 14), new Card("D", 13)]; // A-A-K of D
+		var hp5 = [new Card("C", 3), new Card("C", 3), new Card("C", 4)]; // trump pair and single
+		test(validator(htb5, hp5, new Card("C", 2)), true, "weird5");
+
+		// test a case where a trump pair has to be interpreted as singles
+		var htb6 = [new Card("D", 14), new Card("H", 14), new Card("S", 14)];
+		var hp6 = [new Card("C", 3), new Card("C", 3), new Card("C", 4)];
+		test(validator(htb6, hp6, new Card("C", 2)), true, "weird6");
 	}
 
 	function analyzeTests() {
