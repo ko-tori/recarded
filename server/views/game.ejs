@@ -1,6 +1,38 @@
-Welcome to room <%= room.name %><br>
-Players: <%= [owner.username].concat(members).join(', ') %><br>
-Invited: <%= invited.join(', ') %><br>
-<form action='.' method='post'>
-<input type='submit' value='Start'>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Loading...</title>
+	<link rel="stylesheet" type="text/css" href="/style.css">
+	<style type="text/css">
+		#invonly {
+			font-size: 0.5em;
+			font-weight: normal;
+		}
+	</style>
+	<script type="text/javascript" src="/ext/socket.io.js"></script>
+</head>
+<body>
+	<div id="contents">
+		Loading...
+	</div>
+
+<script type="text/javascript">
+	var socket = io.connect(location.pathname);
+
+	socket.on('connect', () => {
+		// console.log(socket.id);
+	});
+
+	socket.on('initLobby', data => {
+		document.getElementById('contents').innerHTML = `<h1>${data.roomName} <span id='invonly'>${data.inviteOnly ? 'Private Room' : 'Public Room'}</span></h1>
+			<p>Owner: ${data.owner}</p>
+			<p>Players: ${data.players.join(', ') || 'No Players'}</p>
+			<p>Invited: ${data.invited.join(', ') || 'No Invitations'}</p>`;
+	});
+
+	socket.on('error', error => {
+		document.getElementById('contents').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
+	});
+</script>
+</body>
+</html>

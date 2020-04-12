@@ -74,10 +74,10 @@ function analyzeHand(cards, declaredCard) {
 	if(cTrack[trumpNum] == 2) {
 		if(cTrack[52] == 2) {
 			if(cTrack[53] == 2) {
-				tractorName += "Trump Triple Tractor (Big " + letters[declaredCard.num] + "-Small Joker-Big Joker)";
+				tractorName += ", Trump Triple Tractor (Big " + letters[declaredCard.num] + "-Small Joker-Big Joker)";
 			}
 			else{
-				tractorName += "Trump Double Tractor (Big " + letters[declaredCard.num] + "-Small Joker)";
+				tractorName += ", Trump Double Tractor (Big " + letters[declaredCard.num] + "-Small Joker)";
 			}	
 		}
 		else{
@@ -90,14 +90,14 @@ function analyzeHand(cards, declaredCard) {
 	else {
 		if(cTrack[53] == 2){
 			if(cTrack[52] == 2) {
-				pairName += "Trump Tractor (Small Joker-Big Joker)";
+				pairName += ", Trump Tractor (Small Joker-Big Joker)";
 			}
 			else {
-				pairName += "Trump Pair (Big Joker)";
+				pairName += ", Trump Pair (Big Joker)";
 			}
 		}
 		else if(cTrack[52] == 2){
-			pairName += "Trump Pair (Small Joker)";
+			pairName += ", Trump Pair (Small Joker)";
 		}
 	}	
 	if(cTrack[trumpNum] == 1){
