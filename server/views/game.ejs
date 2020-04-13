@@ -4,19 +4,109 @@
 	<title>Loading...</title>
 	<link rel="stylesheet" type="text/css" href="/style.css">
 	<style type="text/css">
-		#invonly {
+		#lobby-invonly {
 			font-size: 0.5em;
 			font-weight: normal;
 		}
+
+		#lobby, #loading {
+			display: none;
+			margin: 20px 10px;
+			padding: 0px 15px;
+		}
+
+		#lobby {
+			display: none;
+		}
+
+		#game {
+			display: none;
+			margin: 0;
+			
+			user-select: none;
+		}
+
+		@import url('https://fonts.googleapis.com/css?family=Titillium+Web');
+
+		canvas {
+			top: 0;
+			left: 0;
+		}
+
+		body {
+			overflow: hidden;			
+		}
+		#test {
+			background-color: rgba(255, 255, 255, 0.8);
+			position: absolute;
+			bottom: 120px;
+			right: 10px;
+			text-align: right;
+			font-size: 2em;
+			/*font-weight: bold;*/
+		}
+
+		.pointer {
+			cursor: pointer;
+		}
+
+		#invButton {
+			cursor: pointer;
+		}
+
+		.lobby-connected {
+			color: green;
+		}
+
+		.lobby-notconnected {
+			color: red;
+		}
 	</style>
 	<script type="text/javascript" src="/ext/socket.io.js"></script>
+	<script type="text/javascript" src="/ext/jquery-3.4.1.min.js"></script>
 </head>
 <body>
-	<div id="contents">
-		Loading...
+	<div id='loading'>Loading...</div>
+	<div id='lobby'>
+		<h1><span id='lobby-roomName'></span> <span id='lobby-invonly'></span></h1>
+		<p>Owner: <span  id='lobby-owner'></span></p>
+		<p>Players: <span id='lobby-players'></span></p>
+		<p>Invited: <span id='lobby-invited'></span></p>
+		<p><button id='invButton'>Invite</button></p>
+		<a href='/'>Home</a>
 	</div>
 
+	<div id='game'>
+		<div id='test'></div>
+		<canvas id='canvas'></canvas>
+	</div>
+
+<script type="text/javascript" src="/lib.js"></script>
+<script type="text/javascript" src="/game.js"></script>
 <script type="text/javascript">
+	var lobbyInfo;
+	var status = 'loading';
+	var connected = [];
+
+	var renderLobby = () => {
+		let players = lobbyInfo.players.map(p => `<span class='${connected.includes(p) ? 'lobby-connected' : 'lobby-notconnected'}'>${p}</span>`);
+
+		document.getElementById('lobby-roomName').innerHTML = lobbyInfo.roomName;
+		document.getElementById('lobby-invonly').innerHTML = lobbyInfo.inviteOnly ? 'Private Room' : 'Public Room';
+		document.getElementById('lobby-owner').innerHTML = lobbyInfo.owner;
+		document.getElementById('lobby-players').innerHTML = players.join(', ') || 'No Players';
+		document.getElementById('lobby-invited').innerHTML = '' + (lobbyInfo.invited.join(', ') || 'No Invitations');
+
+		$('#lobby').css({display: 'block'});
+		$('#game').css({display: 'none'});
+		$('#loading').css({display: 'none'});
+	};
+
+	$('#invButton').click(e => {
+		let username = prompt('Enter a user to invite:');
+		socket.emit('invite', username);
+	});
+
 	var socket = io.connect(location.pathname);
 
 	socket.on('connect', () => {
@@ -24,14 +114,55 @@
 	});
 
 	socket.on('initLobby', data => {
-		document.getElementById('contents').innerHTML = `<h1>${data.roomName} <span id='invonly'>${data.inviteOnly ? 'Private Room' : 'Public Room'}</span></h1>
-			<p>Owner: ${data.owner}</p>
-			<p>Players: ${data.players.join(', ') || 'No Players'}</p>
-			<p>Invited: ${data.invited.join(', ') || 'No Invitations'}</p>`;
+		status = 'lobby';
+		document.title = '找朋友 - Room ' + data.roomName;
+		lobbyInfo = data;
+		renderLobby();
 	});
 
-	socket.on('error', error => {
-		document.getElementById('contents').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
+	socket.on('connectedChange', c => {
+		connected = c;
+
+		if (status == 'lobby') {
+			renderLobby();
+		}
+	});
+
+	socket.on('lobby-joined', data => {
+		lobbyInfo.players.push(data.username);
+		if (data.invited) {
+			let i = lobbyInfo.invited.indexOf(data.username);
+
+			if (i >= 0) {
+				lobbyInfo.invited.splice(i, 1);
+			}
+		}
+		renderLobby();
+	});
+
+	socket.on('lobby-invited', data => {
+		console.log('invited', data.username);
+		lobbyInfo.invited.push(data.username);
+		renderLobby();
+	});
+
+	socket.on('lobby-inviteError', err => {
+		alert(err);
+	});
+
+	socket.on('initGame', data => {
+		status = 'started';
+		$('#lobby').css({display: 'none'});
+		$('#game').css({display: 'block'});
+		$('#loading').css({display: 'none'});
+	});
+
+	socket.on('err', error => {
+		socket.disconnect();
+		$('#lobby').css({display: 'none'});
+		$('#game').css({display: 'none'});
+		$('#loading').css({display: 'block'});
+		document.getElementById('loading').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
 	});
 </script>
 </body>

@@ -1,0 +1,15 @@
+TODO
+
+high priority
+
+basic multiplayer card playing
+
+game logic:
+valid playable cards based on initial play and currently selected cards
+working play comparator for multi plays
+
+room deletion
+update /rooms on all events (eg. joining from rooms page, joining directly from url)
+refactor /rooms route to use unique namespace for each user (with authorization)
+
+low priority
