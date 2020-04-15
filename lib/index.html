@@ -12,5 +12,14 @@
 		float: left;
 	}
 </style>
-<script src="GameState.js"></script>
+<script src="GameState.js">
+	
+</script>
+<script type="text/javascript">
+	var players = [];
+	for(var i = 0; i < 5; i++) {
+		players.push(new Player());
+	}
+	var gs = new GameState(players);
+</script>
 </html>
