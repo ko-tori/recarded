@@ -6,6 +6,8 @@ var Account = require('./db/account');
 var Room = require('./db/room');
 
 var ObjectMap = require('../lib/util/ObjectMap');
+var SocketMap = require('../lib/util/SocketMap');
+var GameState = require('../lib/GameState');
 
 var activeGames = new ObjectMap();
 var io;
@@ -48,40 +50,24 @@ async function getInvited(user) {
 async function loadRooms(condition = { status: { $in: ['lobby', 'started'] } }) {
     let res = new ObjectMap();
     for (let room of await Room.find(condition)) {
-        res.set(room._id, await Game.fromJSON(room.game));
+        res.set(room._id, Game.load(room, room.game));
     }
 
     return res;
 }
 
-class Player {
-    constructor(name, pos) {
-        this.name = name;
-        this.hand = [];
-        this.pos = pos;
-    }
-}
-
 class Game {
-    constructor(room, playerPositions = [0, 1, 2, 3, 4].sort(() => 0.5 - Math.random()), state = 'placeholder') {
+    constructor(room, gameState = null) {
         this.room = room;
-        this.state = state;
-        this.playerPositions = playerPositions;
-        this.connected = [];
-        this.players = {};
+        this.connected = new SocketMap();
+        this.gameState = gameState;
+    }
+
+    get players() {
+        return [this.room.owner].concat(this.room.members);
     }
 
     async init() {
-        if (this.room.status == 'started') {
-            let owner = await Account.findById(this.room.owner);
-            let players = [owner.username].concat((await Promise.all(this.room.members.map(m => Account.findById(m)))).map(m => m.username));
-
-            for (let i = 0; i < players.length; i++) {
-                let player = players[i];
-                this.players[player] = new Player(player, playerPositions[i]);
-            }
-        }
-
         this.nsp = io.of('/r/' + this.room._id);
 
         this.nsp.on('connection', async socket => {
@@ -97,17 +83,17 @@ class Game {
                     }
                 }
 
-                if (this.room.members.length >= 4) {
-                    socket.emit('err', 'This room is full');
-                    return;
-                }
-
-                let isInvited = false;
-                if (inviteIndex >= 0) {
-                    this.room.invited.splice(inviteIndex, 1);
-                    isInvited = true;
-                }
                 if (!socket.request.user._id.equals(this.room.owner) && memberIndex == -1) {
+                    if (this.room.members.length >= 4) {
+                        socket.emit('err', 'This room is full');
+                        return;
+                    }
+
+                    let isInvited = false;
+                    if (inviteIndex >= 0) {
+                        this.room.invited.splice(inviteIndex, 1);
+                        isInvited = true;
+                    }
                     this.room.members.push(socket.request.user._id);
                     socket.broadcast.emit('lobby-joined', {
                         username: socket.request.user.username,
@@ -128,14 +114,14 @@ class Game {
                 }
 
                 let owner = await Account.findById(this.room.owner);
-                let players = (await Promise.all(this.room.members.map(m => Account.findById(m)))).map(m => m.username);
+                let players = (await Promise.all(this.players.map(m => Account.findById(m)))).map(m => m.username);
                 let invited = (await Promise.all(this.room.invited.map(m => Account.findById(m)))).map(m => m.username);
 
                 socket.emit('initLobby', {
                     roomName: this.room.name,
                     inviteOnly: this.room.inviteOnly,
                     owner: owner.username,
-                    players: [owner.username].concat(players),
+                    players: players,
                     invited: invited,
                     you: socket.request.user.username,
                     status: 'lobby'
@@ -144,8 +130,9 @@ class Game {
                 socket.init('initGame', this.serializeForPlayer(socket.request.user.username));
             }
 
-            this.connected.push(socket.request.user.username);
-            this.nsp.emit('connectedChange', this.connected);
+
+            this.connected.push(socket.request.user._id, socket.id, socket.request.user.username);
+            this.nsp.emit('connectedChange', this.connected.allInfo());
 
             socket.on('invite', async username => {
                 if (this.room.members.length >= 4) {
@@ -181,34 +168,33 @@ class Game {
             });
 
             socket.on('disconnect', () => {
-                let i = this.connected.indexOf(socket.request.user.username);
-                if (i >= 0) {
-                    this.connected.splice(i, 1);
-                }
+                this.connected.remove(socket.request.user._id, socket.id);
 
-                this.nsp.emit('connectedChange', this.connected);
+                this.nsp.emit('connectedChange', this.connected.allInfo());
             });
 
-            socket.on('start', () => {
-                this.players = 
-                this.room.status = 'started';
-                for (let player of this.players) {
-                    this.nsp.emit('initGame', this.serializeForPlayer(player)); // game init stuff
+            socket.on('start', async () => {
+                if (!socket.request.user._id.equals(this.room.owner)) {
+                    socket.emit('start-error', 'Only the owner may start the game');
+                } else if (this.room.members.length != 4) {
+                    socket.emit('start-error', 'You need 5 players to start');
+                } else if (this.room.status == 'started') {
+                    socket.emit('start-error', 'Game already started');
+                } else if (this.room.status == 'finished') {
+                    socket.emit('start-error', 'Game already finished');
+                } else if (this.connected.size != 5) {
+                    socket.emit('start-error', 'Everyone must be connected to start');
+                } else {
+                    let players = (await Promise.all(this.players.map(m => Account.findById(m)))).sort(() => 0.5 - Math.random());
+                    this.gameState = new GameState(players.map(u => u.username));
+                    this.room.status = 'started';
+                    for (let i = 0; i < 5; i++) {
+                        for (let s of this.connected.getSockets(players[i]._id)) {
+                            this.nsp.connected[s].emit('initGame', this.gameState.serializeForPlayer(i));
+                        }
+                    }
+                    this.save();
                 }
-                this.room.save();
-
-                // actual logic below
-                // if (this.room.status != 'lobby') {
-                //     socket.emit('start-error', 'Game already started');
-                // } else if (this.room.members.length < 4) {
-                //     socket.emit('start-error', 'You need 5 players to start');
-                // } else if (new Set(this.connected).size < 5) {
-                //     socket.emit('start-error', 'Everyone must be connected to start');
-                // } else {
-                //     this.room.status = 'started';
-                //     this.nsp.emit('initGame', {}); // game init stuff
-                //     this.room.save();
-                // }
             });
 
             socket.on('playCards', data => {
@@ -218,29 +204,13 @@ class Game {
     }
 
     save() {
-        this.room.game = this.toJSON();
+        this.room.game = this.gameState.serialize();
         this.room.markModified('game');
         this.room.save();
     }
 
-    toJSON() {
-        return {
-            roomID: this.room._id.toString(),
-            playerPositions: this.playerPositions,
-            state: this.state//.toJSON()
-        };
-    }
-
-    serializeForPlayer(playerName) {
-        return {
-
-        };
-    }
-
-    static async fromJSON(json) {
-        var g = new Game(await Room.findById(json.roomID), json.players, json.playerPositions, json.state);
-
-        return g;
+    static load(room, state) {
+        return new Game(room, state);// GameState.fromJSON(json));
     }
 }
 
@@ -299,18 +269,20 @@ async function initNewRoom(name, owner, invited, inviteOnly) {
 }
 
 var updateRoomsPageforUser = function(user, message, data) {
-    let sockets = roomsSocketByUser.get(user);
+    let sockets = roomsSocketByUser.getSockets(user);
 
-    if (sockets) {
-        for (let s of sockets) {
-            let socket = roomsnsp.connected[s];
+    for (let s of sockets) {
+        let socket = roomsnsp.connected[s];
 
+        if (socket) {
             socket.emit(message, data);
+        } else {
+            console.log('Socket missing');
         }
     }
 };
 
-var roomsSocketByUser = new ObjectMap();
+var roomsSocketByUser = new SocketMap();
 var roomsnsp;
 
 var init = _io => {
@@ -322,26 +294,14 @@ var init = _io => {
     roomsnsp = io.of('/rooms');
 
     roomsnsp.on('connection', async function(socket) {
-        let sockets;
-        if (roomsSocketByUser.has(socket.request.user._id)) {
-            sockets = roomsSocketByUser.get(socket.request.user._id);
-        } else {
-            sockets = [];
-            roomsSocketByUser.set(socket.request.user._id, sockets);
-        }
-        sockets.push(socket.id);
+        roomsSocketByUser.push(socket.request.user._id, socket.id);
         
         socket.emit('owned', await getOwned(socket.request.user));
         socket.emit('joined', await getJoined(socket.request.user));
         socket.emit('invited', await getInvited(socket.request.user));
 
         socket.on('disconnect', () => {
-            let sockets = roomsSocketByUser.get(socket.request.user._id);
-            sockets.splice(sockets.indexOf(socket.id), 1);
-
-            if (sockets.length == 0) {
-                roomsSocketByUser.delete(socket.request.user._id);
-            }
+            roomsSocketByUser.remove(socket.request.user._id, socket.id);
         });
     });
 };
