@@ -13,3 +13,8 @@ update /rooms on all events (eg. joining from rooms page, joining directly from 
 refactor /rooms route to use unique namespace for each user (with authorization)
 
 low priority
+
+Valid plays
+Check if player can declare (won the round before, no one has declared yet or over turning with 2 or reinforcing declare)
+Check if play is valid based on cards played;
+Check winner of a round

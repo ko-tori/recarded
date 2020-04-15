@@ -12,21 +12,23 @@
 		float: left;
 	}
 </style>
-<script src="GameState.js">
-	
-</script>
+<script src="lib.js"></script>
+<script src="GameState.js"></script>
 <script type="text/javascript">
 	var players = [];
-	for(var i = 0; i < 5; i++) {
+	for (var i = 0; i < 5; i++) {
 		players.push(new Player());
 	}
 	var gs = new GameState(players);
+	for (var i = 0; i < gs.numCards * gs.numPlayers; i++) {
+		gs.drawCard();
+	}
 
 	let handPs = ['hand1', 'hand2', 'hand3', 'hand4', 'hand5'];
 
 	function frame() {
 		for (let i = 0; i < 5; i++) {
-			document.getElementById(handPs[i]).innerHTML = gs.players[i].hand.toString();
+			document.getElementById(handPs[i]).innerHTML = gs.players[i].hand.join("<br>");
 		}
 
 		window.requestAnimationFrame(frame);
