@@ -100,7 +100,6 @@ class Game {
                         invited: isInvited
                     });
                 }
-                this.room.save();
 
                 if (!socket.request.user._id.equals(this.room.owner)) {
                     let uInvitedRoomsIndex = socket.request.user.invitedRooms.indexOf(this.room._id);
@@ -112,24 +111,23 @@ class Game {
                     }
                     socket.request.user.save();
                 }
-
-                let owner = await Account.findById(this.room.owner);
-                let players = (await Promise.all(this.players.map(m => Account.findById(m)))).map(m => m.username);
-                let invited = (await Promise.all(this.room.invited.map(m => Account.findById(m)))).map(m => m.username);
-
-                socket.emit('initLobby', {
-                    roomName: this.room.name,
-                    inviteOnly: this.room.inviteOnly,
-                    owner: owner.username,
-                    players: players,
-                    invited: invited,
-                    you: socket.request.user.username,
-                    status: 'lobby'
-                });
             } else if (this.room.status == 'started') {
-                socket.init('initGame', this.serializeForPlayer(socket.request.user.username));
+                socket.emit('initGame', this.gameState.serializeForPlayer(socket.request.user.username));
             }
 
+            let owner = await Account.findById(this.room.owner);
+            let players = (await Promise.all(this.players.map(m => Account.findById(m)))).map(m => m.username);
+            let invited = (await Promise.all(this.room.invited.map(m => Account.findById(m)))).map(m => m.username);
+
+            socket.emit('initLobby', {
+                roomName: this.room.name,
+                inviteOnly: this.room.inviteOnly,
+                owner: owner.username,
+                players: players,
+                invited: invited,
+                you: socket.request.user.username,
+                status: 'lobby'
+            });
 
             this.connected.push(socket.request.user._id, socket.id, socket.request.user.username);
             this.nsp.emit('connectedChange', this.connected.allInfo());
@@ -150,7 +148,6 @@ class Game {
                         socket.emit('lobby-inviteError', 'User already joined');
                     } else {
                         this.room.invited.push(id);
-                        this.room.save();
                         acc.invitedRooms.push(this.room._id);
                         acc.save();
                         this.nsp.emit('lobby-invited', {
@@ -176,21 +173,34 @@ class Game {
             socket.on('start', async () => {
                 if (!socket.request.user._id.equals(this.room.owner)) {
                     socket.emit('start-error', 'Only the owner may start the game');
-                } else if (this.room.members.length != 4) {
-                    socket.emit('start-error', 'You need 5 players to start');
+                // } else if (this.room.members.length != 4) {
+                    // uncomment this to require 5 players to start
+                //     socket.emit('start-error', 'You need 5 players to start');
                 } else if (this.room.status == 'started') {
                     socket.emit('start-error', 'Game already started');
                 } else if (this.room.status == 'finished') {
                     socket.emit('start-error', 'Game already finished');
-                } else if (this.connected.size != 5) {
-                    socket.emit('start-error', 'Everyone must be connected to start');
+                // } else if (this.connected.size != 5) {
+                    // uncomment this to require everyone to be connected to start
+                //    socket.emit('start-error', 'Everyone must be connected to start');
                 } else {
-                    let players = (await Promise.all(this.players.map(m => Account.findById(m)))).sort(() => 0.5 - Math.random());
-                    this.gameState = new GameState(players.map(u => u.username));
+                    let players = await Promise.all(this.players.map(m => Account.findById(m)));
+                    let temp = new Array(5).fill('empty');
+                    temp.splice(0, players.length, ...players);
+                    this.gameState = new GameState(temp.sort(() => 0.5 - Math.random()).map(u => u.username));
+                    for (var i = 0; i < this.gameState.numCards * this.gameState.numPlayers; i++) {
+                        this.gameState.drawCard();
+                    }
                     this.room.status = 'started';
+                    let gss = this.gameState.serialize(); // remove this later
                     for (let i = 0; i < 5; i++) {
+                        if (!players[i]) {
+                            continue;
+                        }
+
                         for (let s of this.connected.getSockets(players[i]._id)) {
-                            this.nsp.connected[s].emit('initGame', this.gameState.serializeForPlayer(i));
+                            // change this to serialize for player when that is done
+                            this.nsp.connected[s].emit('initGame', gss); // this.gameState.serializeForPlayer(i));
                         }
                     }
                     this.save();
@@ -204,15 +214,26 @@ class Game {
     }
 
     save() {
-        this.room.game = this.gameState.serialize();
+        if (this.gameState && this.gameState.serialize) {
+            this.room.game = this.gameState.serialize();
+        } else {
+            this.room.game = {};
+        }
         this.room.markModified('game');
         this.room.save();
     }
 
     static load(room, state) {
-        return new Game(room, state);// GameState.fromJSON(json));
+        return new Game(room, GameState.deserialize(state));
     }
 }
+
+// autosave each room every 5 seconds
+setInterval(function() {
+    for (let game of activeGames.values()) {
+        game.save();
+    }
+}, 5000);
 
 async function initGames() {
     activeGames = await loadRooms();
@@ -246,7 +267,6 @@ async function initNewRoom(name, owner, invited, inviteOnly) {
 
     let g = new Game(room);
     g.init();
-    room.game = g.toJSON();
 
     for (let id of room.invited) {
         updateRoomsPageforUser(id, 'newInvite', {

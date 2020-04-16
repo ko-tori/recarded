@@ -25,6 +25,9 @@ function returnOther(num) {
 }
 
 function analyzeHand(cards, declaredCard) {
+	if (!declaredCard || cards.length == 0) {
+		return '';
+	}
 	var cTrack = new Array(54);
 	cTrack.fill(0);
 	var trumpNum = 0;
@@ -264,8 +267,16 @@ function actualRanks(card) {
 }
 
 const cardSorter = (a, b) => {
-	let [srA, nrA] = actualRanks(a);
-	let [srB, nrB] = actualRanks(b);
+	let srA, nrA, srB, nrB;
+	if (!declaredCard) {
+		srA = suitRanks[a.suit];
+		nrA = numRanks[a.num];
+		srB = suitRanks[b.suit];
+		nrB = numRanks[b.num];
+	} else {
+		[srA, nrA] = actualRanks(a);
+		[srB, nrB] = actualRanks(b);
+	}
 
 	if (srA == srB) {
 		return nrA - nrB;

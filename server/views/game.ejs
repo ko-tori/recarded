@@ -51,7 +51,15 @@
 		}
 
 		#invButton {
+			margin-left: 1em;
+		}
+
+		button {
 			cursor: pointer;
+		}
+
+		button[disabled] {
+			cursor: default;
 		}
 
 		.lobby-connected {
@@ -71,8 +79,8 @@
 		<h1><span id='lobby-roomName'></span> <span id='lobby-invonly'></span></h1>
 		<p>Owner: <span  id='lobby-owner'></span></p>
 		<p>Players: <span id='lobby-players'></span></p>
-		<p>Invited: <span id='lobby-invited'></span></p>
-		<p><button id='invButton'>Invite</button></p>
+		<p>Invited: <span id='lobby-invited'></span><button id='invButton'>Invite</button></p>
+		<p><button id='startButton'>Start</button></p>
 		<a href='/'>Home</a>
 	</div>
 
@@ -88,6 +96,17 @@
 	var status = 'loading';
 	var connected = [];
 
+	const frames = ['lobby', 'game', 'loading'];
+
+	function showFrame(fr) {
+		for (let f of frames) {
+			$('#' + f).css({ display: f == fr ? 'block' : 'none' });
+		}
+	}
+
+	var lobbyInitResolve;
+	var lobbyInit = new Promise((resolve, reject) => {lobbyInitResolve = resolve;});
+
 	var renderLobby = () => {
 		let players = lobbyInfo.players.map(p => `<span class='${connected.includes(p) ? 'lobby-connected' : 'lobby-notconnected'}'>${p}</span>`);
 
@@ -97,17 +116,24 @@
 		document.getElementById('lobby-players').innerHTML = players.join(', ') || 'No Players';
 		document.getElementById('lobby-invited').innerHTML = '' + (lobbyInfo.invited.join(', ') || 'No Invitations');
 
-		$('#lobby').css({display: 'block'});
-		$('#game').css({display: 'none'});
-		$('#loading').css({display: 'none'});
+		document.getElementById('startButton').disabled = lobbyInfo.you != lobbyInfo.owner
+			// || lobbyInfo.players.length != 5; // enable this if you want to 5 players to start
+			// || connected.length != 5; // enable this if you want to require all 5 players to be connected to start
+		document.getElementById('invButton').disabled = lobbyInfo.players.length >= 5;
+
+		showFrame('lobby');
 	};
+
+	var socket = io.connect(location.pathname);
 
 	$('#invButton').click(e => {
 		let username = prompt('Enter a user to invite:');
 		socket.emit('invite', username);
 	});
 
-	var socket = io.connect(location.pathname);
+	$('#startButton').click(e => {
+		socket.emit('start');
+	});
 
 	socket.on('connect', () => {
 		// console.log(socket.id);
@@ -118,6 +144,8 @@
 		document.title = '找朋友 - Room ' + data.roomName;
 		lobbyInfo = data;
 		renderLobby();
+
+		lobbyInitResolve();
 	});
 
 	socket.on('connectedChange', c => {
@@ -150,18 +178,54 @@
 		alert(err);
 	});
 
-	socket.on('initGame', data => {
-		status = 'started';
-		$('#lobby').css({display: 'none'});
-		$('#game').css({display: 'block'});
-		$('#loading').css({display: 'none'});
+	socket.on('start-error', err => {
+		alert(err);
+	});
+
+	socket.on('initGame', async data => {
+		await lobbyInit;
+		console.log('initGame', data);
+		showFrame('loading');
+
+		align();
+
+		init(function() {
+			playerNames = new Array(5).fill(null);
+			playerTeams = new Array(5).fill(null);
+			playerPoints = new Array(5).fill(null);
+
+			for (let i = 0; i < data.players.length; i++) {
+				let p = data.players[i];
+				playerNames[i] = p.name;
+				playerTeams[i] = p.team;
+				playerPoints[i] = p.points;
+
+				if (p.name == lobbyInfo.you) {
+					hand = p.hand.map(c => new Card(c.suit, c.num));
+					playerPosition = i;
+				}
+			}
+
+			declaredCard = data.declaredCard;
+			if (data.declaredCard) {
+				declaredCard = new Card(data.declaredCard.suit, data.declaredCard.num);
+			}
+
+			status = 'started';
+			showFrame('game');
+
+			setCardParams();
+
+			hand.sort(cardSorter);
+			updateHandPositions();
+
+			window.requestAnimationFrame(render);
+		});
 	});
 
 	socket.on('err', error => {
 		socket.disconnect();
-		$('#lobby').css({display: 'none'});
-		$('#game').css({display: 'none'});
-		$('#loading').css({display: 'block'});
+		showFrame('loading');
 		document.getElementById('loading').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
 	});
 </script>

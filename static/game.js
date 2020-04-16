@@ -9,15 +9,14 @@ var declaredCard;
 var playerNames = ['ああああああああああああああああ', 'プレーヤー・トゥー', 'Player 3', 'Player 4'];
 var playerTeams = ['?', '?', '?', '?'];
 var playerPoints = [0, 0, 0, 0, 0];
+const TEAM_ENUM = ['?', 'Defending', 'Attacking'];
 
-var playerPosition = Math.floor(Math.random() * 5);
-playerNames.splice(playerPosition, 0, 'you');
-
-playerTeams.splice(Math.floor(Math.random() * 5), 0, 'Defending');
+var playerPosition = 0;
 
 var friendCard;
 
 // other vars for rendering
+var cardImgs = {};
 
 var width = 0;
 var height = 0;
@@ -32,6 +31,9 @@ const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
 
 const cardBack = new Image;
 cardBack.src = '/cards/back.png';
+
+const unknown = new Image;
+unknown.src = '/cards/unknown.png';
 
 var hovered;
 var selected = [];
@@ -230,12 +232,12 @@ class HandCardRenderer {
 }
 
 class Card {
-	constructor(suit, num, img) {
+	constructor(suit, num) {
 		this.suit = suit;
 		this.num = num;
-		this.img = img;
+		this.img = cardImgs[suit + num];
 
-		this.renderer = new HandCardRenderer(img);
+		this.renderer = new HandCardRenderer(this.img);
 	}
 
 	toString() {
@@ -270,7 +272,7 @@ var drawUserInfo = function(ctx, name, team, points, size, align, x, y, maxW) {
 	ctx.font = `${size - 6}px 'Titillium Web'`;
 	ctx.textAlign = align;
 	ctx.fillText(name, x, y - size, maxW);
-	ctx.fillText("Team: " + team, x, y, maxW);
+	ctx.fillText("Team: " + TEAM_ENUM[team], x, y, maxW);
 	ctx.fillText("Points: " + points, x, y + size, maxW);
 };
 
@@ -404,45 +406,20 @@ var init = function(callback) {
 	let i = new Image;
 	i.src = '/cards/J1.png';
 	i.onload = finish;
-	deck.push(new Card('J', 1, i));
-	deck.push(new Card('J', 1, i));
+	cardImgs['J1'] = i;
 
 	i = new Image;
 	i.src = '/cards/J2.png';
 	i.onload = finish;
-	deck.push(new Card('J', 2, i));
-	deck.push(new Card('J', 2, i));
+	cardImgs['J2'] = i;
 
 	for (let suit of ['C', 'D', 'H', 'S']) {
 		for (let n = 1; n <= 13; n++) {
 			let i = new Image;
 			i.src = '/cards/' + fileLetters[n] + suit + '.png';
 			i.onload = finish;
-			deck.push(new Card(suit, n, i));
-			deck.push(new Card(suit, n, i));
+			cardImgs[suit + n] = i;
 		}
-	}
-
-	friendCard = deck[Math.floor(Math.random() * deck.length)];
-
-	declaredCard = deck[Math.floor(Math.random() * deck.length)]
-	while (declaredCard.suit == 'J') {
-		declaredCard = deck[Math.floor(Math.random() * deck.length)];
-	}
-
-	deck.sort(() => 0.5 - Math.random());
-	hand = deck.slice(0, HAND_SIZE);
-
-	let flag = true;
-	for (let card of hand) {
-		if (card.equals(friendCard)) {
-			flag = false;
-			break;
-		}
-	}
-
-	if (flag) {
-		playerTeams[playerPosition] = 'Attacking';
 	}
 };
 
@@ -466,6 +443,12 @@ var unhoverCards = function() {
 	for (let i = 0; i < hand.length; i++) {
 		hand[i].renderer.hovered = false;
 	}
+};
+
+var declareCard = function(card) {
+	declaredCard = card;
+	hand.sort(cardSorter);
+	updateHandPositions();
 };
 
 var render = function(currentTime) {
@@ -540,10 +523,18 @@ var render = function(currentTime) {
 	ctx.font = `${h / 8}px Titillium Web`;
 
 	ctx.fillText('Declared Card', tableX + 5 * tableW / 12, tableY);
-	ctx.drawImage(declaredCard.img, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	if (!declaredCard) {
+		ctx.drawImage(unknown, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	} else {
+		ctx.drawImage(declaredCard.img, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	}
 
 	ctx.fillText('Friend Card', tableX + 7 * tableW / 12, tableY);
-	ctx.drawImage(friendCard.img, tableX + 7 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	if (!friendCard) {
+		ctx.drawImage(unknown, tableX + 7 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	} else {
+		ctx.drawImage(friendCard.img, tableX + 7 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+	}
 
 	// player names
 	ctx.textBaseline = 'middle';
@@ -632,20 +623,6 @@ var render = function(currentTime) {
 
 	window.requestAnimationFrame(render);
 };
-
-$(document).ready(function() {
-	align();
-
-	init(function() {
-		setCardParams();
-
-		hand.sort(cardSorter);
-
-		updateHandPositions();
-
-		window.requestAnimationFrame(render);
-	});
-});
 
 function testHovers() {
 	(function f(n) {
