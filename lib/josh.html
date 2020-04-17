@@ -36,30 +36,15 @@
 
     function analyzeHand(cards, declaredCard) {
         //gets the number value from the letter; if two numbers are 1 off from each other, they are adjacent (for the purpose of tractors)
-        var getNum = {};
-        getNum['A'] = 14;
-        getNum['2'] = 2;
-        getNum['3'] = 3;
-        getNum['4'] = 4;
-        getNum['5'] = 5;
-        getNum['6'] = 6;
-        getNum['7'] = 7;
-        getNum['8'] = 8;
-        getNum['9'] = 9;
-        getNum['T'] = 10;
-        getNum['J'] = 11;
-        getNum['Q'] = 12;
-        getNum['K'] = 13;
-
+        //var getNum = {};
+        var getNum = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':20, 'M':21};
         //I'm using L and M for small joker and big joker respectively (because they're next in alphabet after K)
-        getNum['L'] = 20; //values don't matter as long as it's high and big joker is one above little joker
-        getNum['M'] = 21;
 
         //now change the values depending on trump number to adjust adjacency
         var trumpValue = getNum[letters[declaredCard.num]]; //the value 2-14
         var trumpLetter = letters[declaredCard.num]; //letter A-K
         getNum[trumpLetter] = 19; //change the trump number to be adjacent to small joker
-        for (var it in getNum) { //decrement all the values above the trump
+        for (let it in getNum) { //decrement all the values above the trump
             //ex. if 5 is the trump, then 6 and above are decremented so 4 is adjacent to 6
             if (getNum[it] > trumpValue) {
                 getNum[it]-=1;
@@ -73,7 +58,7 @@
         for example two ace of clubs is a key->value of CA->2
         */
         var cardCount = {};
-        for (var cardIterator of cards) {
+        for (let cardIterator of cards) {
             var currentCard; //two characters, one for suit and one for letter
             if (cardIterator.suit == 'J') {
                 if (cardIterator.num == 1) {
@@ -95,7 +80,7 @@
         }
         
         var output = ""; //final output string
-        for (var val in cardCount) {
+        for (let val in cardCount) {
             var currentSuit; //full name of suit (ex. Hearts)
             var currentNum = val[1]; //the letter of the card (ex. A)
             var count = cardCount[val]; //number of times card appears (ex. 2 for a pair)
@@ -136,7 +121,7 @@
         //add singles to output first
         var i;
         for (i = 0; i < singles.length; i++){
-            if (isTrump == 1) {
+            if (singles[i].trump == 1) {
                 output += "Trump Single (" + singles[i].type + singles[i].letter + "), ";
             }
             else {
@@ -160,7 +145,7 @@
             var jokerFlag = 0; //0 if joker found, 1 if joker not found
             //this block handles a big trump -> small joker tractor (and big trump -> small joker -> big joker)
             if (pairs[i].type == "Big ") {//if card is a big trump, check if there are small and big jokers
-                for (var j = 0; j < pairs.length; j++){
+                for (let j = 0; j < pairs.length; j++){
                     if (pairs[j].suit == 'J' && pairs[j].letter == 'L') { //find the small joker
                         jokerFlag = 1; 
                         length = 2;
@@ -175,7 +160,7 @@
                         }
 
                         //remove the pairs used here
-                        for (var k = 0; k < length; k++) {
+                        for (let k = 0; k < length; k++) {
                             pairs.splice(j,1);
                         }
                         pairs.splice(i,1);
@@ -203,7 +188,7 @@
             if (length >= 2 && jokerFlag == 0) { //found a 2 or longer length tractor 
                 if (pairs[i].suit == "J") { //trump tractor because it contains a joker
                     output += "Trump Tractor (";
-                    for (var tmp = 0; tmp < length; tmp++) {
+                    for (let tmp = 0; tmp < length; tmp++) {
                         if (pairs[tmp+i].suit == "J") { 
                             if (pairs[tmp+i].letter == 'L') {
                                 output += "Small Joker";
@@ -220,7 +205,7 @@
                 }
                 else if (pairs[i].trump == 1) { //it is a trump tractor
                     output += "Trump " + adj + "Tractor (";
-                    for (var n = 0; n < length; n++) {
+                    for (let n = 0; n < length; n++) {
                         output += pairs[i+n].type + pairs[i+n].letter;
                         if (n != (length-1)) {
                             output+="-"
@@ -230,7 +215,7 @@
                 }
                 else { //regular (not trump) tractor
                     output += pairs[i].suit2 + " " + adj + "Tractor (";
-                    for (var n = 0; n < length; n++) {
+                    for (let n = 0; n < length; n++) {
                         output += pairs[i+n].type + pairs[i+n].letter;
                         if (n != (length-1)) {
                             output+="-"
@@ -240,7 +225,7 @@
                 }
 
                 //remove pairs used in this tractor
-                for (var k = 0; k < length; k++) {
+                for (let k = 0; k < length; k++) {
                     pairs.splice(i,1);
                 }
                 i--; //decrement i one after to reset position after finding a tractor
@@ -257,6 +242,22 @@
             }
         }
         
+
+        /*
+        TODO
+        sort big to small
+        sort tractors
+        sort pairs
+        sort singles
+        */
+
+
+
+
+
+
+
+
         output = output.substring(0,output.length-2); //strip off extraneous comma and space
         return output;
         //return String(cards);
