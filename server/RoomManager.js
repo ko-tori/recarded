@@ -208,7 +208,7 @@ class Game {
             });
 
             socket.on('playCards', data => {
-                socket.emit('playedCards')
+                socket.broadcast.emit('playCards', data);
             });
         });
     }

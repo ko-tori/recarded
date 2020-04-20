@@ -28,13 +28,15 @@
 
 		@import url('https://fonts.googleapis.com/css?family=Titillium+Web');
 
-		canvas {
+		canvas, #game {
 			top: 0;
 			left: 0;
+			position: absolute;
 		}
 
 		body {
-			overflow: hidden;			
+			overflow: hidden;
+			margin: 0;
 		}
 		#test {
 			background-color: rgba(255, 255, 255, 0.8);
@@ -43,6 +45,7 @@
 			right: 10px;
 			text-align: right;
 			font-size: 2em;
+			z-index: 2;
 			/*font-weight: bold;*/
 		}
 
@@ -69,6 +72,14 @@
 		.lobby-notconnected {
 			color: red;
 		}
+
+		#canvas {
+			z-index: 0;
+		}
+
+		#priority-canvas {
+			z-index: 1;
+		}
 	</style>
 	<script type="text/javascript" src="/ext/socket.io.js"></script>
 	<script type="text/javascript" src="/ext/jquery-3.4.1.min.js"></script>
@@ -84,9 +95,11 @@
 		<a href='/'>Home</a>
 	</div>
 
+	<div id='test'></div>
+	
 	<div id='game'>
-		<div id='test'></div>
 		<canvas id='canvas'></canvas>
+		<canvas id='priority-canvas'></canvas>
 	</div>
 
 <script type="text/javascript" src="/lib.js"></script>
@@ -201,12 +214,16 @@
 				playerPoints[i] = p.points;
 
 				if (p.name == lobbyInfo.you) {
-					hand = p.hand.map(c => new Card(c.suit, c.num));
+					hand = p.hand.map(c => new Card(c.suit, c.num, HandCardRenderer));
 					playerPosition = i;
 				}
 			}
 
 			declaredCard = data.declaredCard;
+
+			// test declared card - TODO remove later
+			declaredCard = new Card('C', 2);
+
 			if (data.declaredCard) {
 				declaredCard = new Card(data.declaredCard.suit, data.declaredCard.num);
 			}
@@ -228,6 +245,24 @@
 		showFrame('loading');
 		document.getElementById('loading').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
 	});
+
+	// socket game events
+
+	socket.on('playCards', data => {
+		let p = data.player;
+		let cards = data.cards.map(c => Card.deserialize(c));
+
+		playCardsHandler(cards, p);
+	});
+
+	function sendPlayCards(cards) {
+		socket.emit('playCards', {
+			player: playerPosition,
+			cards: cards.map(c => c.serialize())
+		});
+	}
+
+	
 </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 const fileLetters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 var deck = [];
 var hand = [];
-var table = [];
+var table = [[], [], [], [], []];
 
 // game information vars (placeholders for now)
 var declaredCard;
@@ -28,6 +28,8 @@ const HAND_SIZE = 30;//Math.floor(Math.random() * 40) + 10;
 const CARD_WIDTH_PX = 691;
 const CARD_HEIGHT_PX = 1056;
 const CARD_ASPECT = CARD_WIDTH_PX / CARD_HEIGHT_PX;
+
+const CENTER_HOVER = true;
 
 const cardBack = new Image;
 cardBack.src = '/cards/back.png';
@@ -91,21 +93,32 @@ class TableCardRenderer {
 		ctx.fillStyle = `rgba(0, 0, 0, ${this.textAlphaInterp}`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'top';
-		ctx.fillText(analyzeHand(this.group, declaredCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+
+		if (CENTER_HOVER) {
+			ctx.fillText(analyzeHand(this.group, declaredCard), width / 2, height / 2 + this.hInterp / 2 + 10);
+		} else {
+			ctx.fillText(analyzeHand(this.group, declaredCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+		}
 
 		if (!this.flipped && this.hovered) {
-			this.x += (this.hoveredX - this.x) / 15 * elapsedSinceLastLoop * animationSpeed;
-			this.y += (this.hoveredY - this.y) / 15 * elapsedSinceLastLoop * animationSpeed;
+			if (CENTER_HOVER) {
+				this.x += (this.hoveredX - this.tableCenterX - this.x + width / 2) / 15 * elapsedSinceLastLoop * animationSpeed;
+				this.y += (this.hoveredY - this.tableCenterY - this.y + height / 2) / 15 * elapsedSinceLastLoop * animationSpeed;
+			} else {
+				this.x += (this.hoveredX - this.x) / 15 * elapsedSinceLastLoop * animationSpeed;
+				this.y += (this.hoveredY - this.y) / 15 * elapsedSinceLastLoop * animationSpeed;
+			}				
+
 			this.rotInterp += (-this.rotInterp) / 15 * elapsedSinceLastLoop * animationSpeed;
-			this.w = 150;
-			this.h = 150 / CARD_ASPECT;
+			this.w = width / 15;
+			this.h = this.w / CARD_ASPECT;
 			this.textAlpha = 1;
 		} else {
 			this.x += (this.xTarget - this.x) / 15 * elapsedSinceLastLoop * animationSpeed;
 			this.y += (this.yTarget - this.y) / 15 * elapsedSinceLastLoop * animationSpeed;
 			this.rotInterp += (this.rot - this.rotInterp) / 15 * elapsedSinceLastLoop * animationSpeed;
-			this.w = 100;
-			this.h = 100 / CARD_ASPECT;
+			this.w = width / 20;
+			this.h = this.w / CARD_ASPECT;
 			this.textAlpha = 0;
 		}
 
@@ -232,12 +245,14 @@ class HandCardRenderer {
 }
 
 class Card {
-	constructor(suit, num) {
+	constructor(suit, num, renderer=null) {
 		this.suit = suit;
 		this.num = num;
 		this.img = cardImgs[suit + num];
 
-		this.renderer = new HandCardRenderer(this.img);
+		if (renderer) {
+			this.renderer = new renderer(this.img);
+		}
 	}
 
 	toString() {
@@ -266,6 +281,17 @@ class Card {
 	equals(other) {
 		return this.suit == other.suit && this.num == other.num;
 	}
+
+	serialize() {
+		return {
+			suit: this.suit,
+			num: this.num
+		};
+	}
+
+	static deserialize(c) {
+		return new Card(c.suit, c.num);
+	}
 }
 
 var drawUserInfo = function(ctx, name, team, points, size, align, x, y, maxW) {
@@ -276,38 +302,135 @@ var drawUserInfo = function(ctx, name, team, points, size, align, x, y, maxW) {
 	ctx.fillText("Points: " + points, x, y + size, maxW);
 };
 
+const tableCenterFuncs = [
+	[
+		() => tableDim[0] + tableDim[2] / 2,
+		() => tableDim[1] + 3 * tableDim[3] / 4
+	],
+	[
+		() => tableDim[0] + 5 * tableDim[2] / 6,
+		() => tableDim[1] + 3 * tableDim[3] / 4
+	],
+	[
+		() => tableDim[0] + 5 * tableDim[2] / 6,
+		() => tableDim[1] + 1 * tableDim[3] / 4
+	],
+	[
+		() => tableDim[0] + 1 * tableDim[2] / 6,
+		() => tableDim[1] + 1 * tableDim[3] / 4
+	],
+	[
+		() => tableDim[0] + 1 * tableDim[2] / 6,
+		() => tableDim[1] + 3 * tableDim[3] / 4
+	]
+];
+
+function getPlayerHandLoc(p) {
+	if (p == 0) {
+		return [
+			tableDim[0] + tableDim[2] / 2,
+			height * 1.1,
+			0
+		];
+	}
+	if (p == 1) {
+		return [
+			width * 1.1,
+			tableDim[1] + 3 * tableDim[3] / 4,
+			-Math.PI / 2
+		];
+	}
+	if (p == 2) {
+		return [
+			width * 1.1,
+			tableDim[1] + 1 * tableDim[3] / 4,
+			-Math.PI / 2
+		];
+	}
+	if (p == 3) {
+		return [
+			-width * 0.1,
+			tableDim[1] + 1 * tableDim[3] / 4,
+			Math.PI / 2
+		];
+	}
+	if (p == 4) {
+		return [
+			-width * 0.1,
+			tableDim[1] + 3 * tableDim[3] / 4,
+			Math.PI / 2
+		];
+	}
+}
+
 var playCards = function(cards) {
+	playCardsHandler(cards);
+	sendPlayCards(cards);
+}
+
+var playCardsHandler = function(cards, player=playerPosition) {
 	cards.sort(cardSorter);
 	if (cards.length == 0) {
 		return;
 	}
 
+	// index of player relative to table, going counterclockwise starting with the client
+	/* 
+	3 |   | 2
+	4 | 0 | 1
+	*/
+
+	let p = (player - playerPosition + 5) % 5;
+
+	let [fx, fy] = tableCenterFuncs[p];
+
 	for (let i = 0; i < cards.length; i++) {
-		cards[i].renderer = new TableCardRenderer(cards, i, cards[i].img, cards[i].renderer.w, cards[i].renderer.h, ...cards[i].renderer.getPosRot(), () => tableDim[0] + tableDim[2] / 2, () => tableDim[1] + 3 * tableDim[3] / 4);
+		let r, w, h, x, y, rot, img;
+		if (!cards[i].renderer) {
+			[r, w, h] = getHandCardDim();
+			[x, y, rot] = getPlayerHandLoc(p);
+		} else {
+			w = cards[i].renderer.w;
+			h = cards[i].renderer.h;
+			[x, y, rot] = cards[i].renderer.getPosRot();
+		}
+		if (cards[i].img) {
+			img = cards[i].img;
+		} else {
+			img = cardImgs[cards[i].suit + cards[i].num];
+		}
+		cards[i].renderer = new TableCardRenderer(cards, i, img, w, h, x, y, rot, fx, fy);
 	}
 
-	if (table.length > 0) {
-		for (let card of table[table.length - 1]) {
+	if (table[p].length > 0) {
+		for (let card of table[p][table[p].length - 1]) {
 			card.renderer.flipped = true;
 		}
 	}
 
-
-	table.push(cards);
+	table[p].push(cards);
 };
 
-var setCardParams = function() {
+var getHandCardDim = function() {
 	let r = width * 0.65;// / 2 * Math.sqrt(2);
 	let cardH = r - width * Math.sin(32 * Math.PI / 180);
 	let cardW = cardH * CARD_ASPECT;
+
+	return [r, cardH, cardW];
+};
+
+var setCardParams = function() {
+	let [r, cardH, cardW] = getHandCardDim();
 
 	for (let i = 0; i < hand.length; i++) {
 		hand[i].setRendererParams(i, hand.length, r, cardW, cardH);
 	}
 
-	for (let group of table) {
-		for (let card of group) {
-			card.setRendererParams();
+	for (let player of table) {
+		for (let group of player) {
+			for (let card of group) {
+				card.setRendererParams();
+			}
 		}
 	}
 };
@@ -322,6 +445,13 @@ var align = function() {
 	
 	$('#canvas').attr("width", width)
 		.attr("height", height);
+
+	$('#priority-canvas').attr("width", width)
+		.attr("height", height);
+
+	$('#test').css({
+		bottom: width / 24 + 20
+	});
 
 	setCardParams();
 };
@@ -455,12 +585,16 @@ var render = function(currentTime) {
 	if (!lastTime) {
 		lastTime = currentTime;
 	}
-	elapsedSinceLastLoop = currentTime - lastTime;
+	elapsedSinceLastLoop = Math.min(currentTime - lastTime, 1000); // 1 fps minimum
 	lastTime = currentTime;
 
 	let canvas = document.getElementById('canvas');
 	let ctx = canvas.getContext('2d');
 
+	let priocanvas = document.getElementById('priority-canvas');
+	let pctx = priocanvas.getContext('2d');
+
+	pctx.clearRect(0, 0, width, height);
 	ctx.clearRect(0, 0, width, height);
 
 	// player ui testing
@@ -506,11 +640,21 @@ var render = function(currentTime) {
 
 	// cards on table rendering
 	ctx.save();
-	for (let group of table) {
-		for (let card of group) {
-			card.render(ctx);
+
+	// TODO in the actual thing these loops might be inverted for the table to be represented as:
+	// table[i][j] = hand j played in round i
+	for (let player of table) {
+		for (let group of player) {
+			for (let card of group) {
+				if (card.renderer.hovered) {
+					card.render(pctx);
+				} else {
+					card.render(ctx);
+				}
+			}
 		}
 	}
+	
 	ctx.restore();
 
 	// declared and friend cards
@@ -551,17 +695,19 @@ var render = function(currentTime) {
 
 	// hit detection
 
-	if (table.length > 0) {
-		let handHovered = false;
-		for (let card of table[table.length - 1]) {
-			if (card.renderer.checkHitTargetPosition(mouseX, mouseY)) {
-				handHovered = true;
-				break;
+	for (let playerCards of table) {
+		if (playerCards.length > 0) {
+			let handHovered = false;
+			for (let card of playerCards[playerCards.length - 1]) {
+				if (card.renderer.checkHitTargetPosition(mouseX, mouseY)) {
+					handHovered = true;
+					break;
+				}
 			}
-		}
 
-		for (let card of table[table.length - 1]) {
-			card.renderer.hovered = handHovered;
+			for (let card of playerCards[playerCards.length - 1]) {
+				card.renderer.hovered = handHovered;
+			}
 		}
 	}
 
@@ -600,9 +746,9 @@ var render = function(currentTime) {
 	}
 
 	if (pointer) {
-		$(canvas).addClass('pointer');
+		$(document.body).addClass('pointer');
 	} else {
-		$(canvas).removeClass('pointer');
+		$(document.body).removeClass('pointer');
 	}
 
 	buttonblurInterp += (buttonblur - buttonblurInterp) / 30 * elapsedSinceLastLoop * animationSpeed;
@@ -633,4 +779,9 @@ function testHovers() {
 		hoverCard(n);
 		setTimeout(() => f(n + 1), 200);
 	})(0);
+}
+
+function testPlayCards(p=1) {
+	declaredCard = new Card('C', 2);
+	playCards([new Card('J', 1), new Card('J', 1)], playerPosition + p);
 }
