@@ -75,7 +75,7 @@ class TableCardRenderer {
 		this.flipped = false;
 
 		this.hovered = false;
-		this.hoveredX = (this.i - (group.length - 1) / 2) * 160;
+		this.hoveredX = (this.i - (group.length - 1) / 2) * (width / 15 * 1.05);
 		this.hoveredY = 0;
 
 		this.textAlphaInterp = 0;
@@ -152,6 +152,8 @@ class TableCardRenderer {
 	setRendererParams(params) {
 		this.tableCenterX = this.playCenterX();
 		this.tableCenterY = this.playCenterY();
+
+		this.hoveredX = (this.i - (this.group.length - 1) / 2) * (width / 15 * 1.05);
 	}
 }
 
