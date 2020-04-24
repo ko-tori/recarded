@@ -38,15 +38,37 @@
 			overflow: hidden;
 			margin: 0;
 		}
-		#test {
-			background-color: rgba(255, 255, 255, 0.8);
+		#gameui {
 			position: absolute;
-			bottom: 120px;
-			right: 10px;
+			bottom: 1vmin;
+			right: 1vmin;
 			text-align: right;
 			font-size: 2em;
 			z-index: 2;
-			/*font-weight: bold;*/
+			user-select: none;
+			display: none;
+		}
+
+		#selectedCards {
+			background-color: rgba(255, 255, 255, 0.8);
+			margin-bottom: 10px;
+			display: block;
+		}
+
+		#actionButton {
+			background-color: grey;
+			font: bold 5vh Titillium Web;
+			color: white;
+			padding: 0.05em 0.5em;
+			text-align: center;
+			border-radius: 1vmin;
+			transition: all 0.2s;
+			display: inline-block;
+		}
+
+		.activeActionButton:hover {
+			cursor: pointer;
+			border-radius: 0px !important;
 		}
 
 		.pointer {
@@ -95,7 +117,7 @@
 		<a href='/'>Home</a>
 	</div>
 
-	<div id='test'></div>
+	<div id='gameui'><div id='selectedCards'></div><div id='actionButton'>Declare</div></div>
 	
 	<div id='game'>
 		<canvas id='canvas'></canvas>
@@ -109,11 +131,17 @@
 	var status = 'loading';
 	var connected = [];
 
-	const frames = ['lobby', 'game', 'loading'];
+	const frames = {
+		lobby: ['lobby'],
+		game: ['game', 'gameui'],
+		loading: ['loading']
+	};
 
 	function showFrame(fr) {
-		for (let f of frames) {
-			$('#' + f).css({ display: f == fr ? 'block' : 'none' });
+		for (let [f, ids] of Object.entries(frames)) {
+			for (let id of ids) {
+				$('#' + id).css({ display: f == fr ? 'block' : 'none' });
+			}
 		}
 	}
 
@@ -212,6 +240,7 @@
 				playerNames[i] = p.name;
 				playerTeams[i] = p.team;
 				playerPoints[i] = p.points;
+				playerLevels[i] = p.level;
 
 				if (p.name == lobbyInfo.you) {
 					hand = p.hand.map(c => new Card(c.suit, c.num, HandCardRenderer));
@@ -222,7 +251,7 @@
 			declaredCard = data.declaredCard;
 
 			// test declared card - TODO remove later
-			declaredCard = new Card('C', 2);
+			// declaredCard = new Card('C', 2);
 
 			if (data.declaredCard) {
 				declaredCard = new Card(data.declaredCard.suit, data.declaredCard.num);

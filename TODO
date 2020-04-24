@@ -1,8 +1,6 @@
 TODO
 
-high priority
-
-basic multiplayer card playing
+basic multiplayer card playing (done)
 
 game logic:
 valid playable cards based on initial play and currently selected cards
@@ -12,9 +10,116 @@ room deletion
 update /rooms on all events (eg. joining from rooms page, joining directly from url)
 refactor /rooms route to use unique namespace for each user (with authorization)
 
-low priority
+
+lobby ui, loading screen
+game button to html, refactor to use some sort of template
 
 Valid plays
 Check if player can declare (won the round before, no one has declared yet or over turning with 2 or reinforcing declare)
 Check if play is valid based on cards played;
 Check winner of a round
+
+
+
+GameState Phases
+
+Draw (server)
+- send drawn card
+- declare
+
+Draw (client)
+
+in render loop:
+	if gamestate = 'Draw':
+		if currentButton = 'confirm-declare' or 'confirm-overturn':
+			currentButtonEnabled = selected.length > 0
+		else if currentButton != 'reinforce':
+			if declaredCard:
+				currentButton = overturn
+				if declareNumberofCards = 1:
+					
+					if player.declarable and player.hand contains a pair with num == player.level:
+						currentButtonEnabled = true
+					else:
+						currentButtonEnabled = false
+			else:
+				currentButton = declare
+				if player.declarable and player.hand contains card with card.num == player.level:
+					currentButtonEnabled = true
+				else:
+					currentButtonEnabled = false
+
+on button click:
+	if currentButton = 'declare':
+		highlight cards with card.num == player.level 
+		currentButton = 'confirm-declare'
+		currentButtonEnabled = false
+
+	if currentButton = 'overturn':
+		highlight pairs with num == player.level
+		currentButton = 'confirm-overturn'
+		currentButtonEnabled = false
+
+	if currentButton = 'confirm-declare'
+		if currentButtonEnabled:
+			play selected
+			emit('declare', selected)
+
+	if currentButton = 'confirm-overturn'
+		if currentButtonEnabled:
+			play selected
+			emit('overturn', selected)
+
+	if currentButton = 'reinforce'
+		if currentButtonEnabled:
+			play prevDeclaredCard, flip=false
+			emit('reinforce', prevDeclaredCard)
+
+socket.on('drawCard', {card}):
+	can set renderer props to animate card from somewhere
+	hand.push(card)
+	update hand positions
+	hand.sort
+	update hand positions
+
+	// allow for reinforce until you draw your second card after overturn occurs
+	if currentButton = 'reinforce' and hand.length > declaredHandSize + 1:
+		currentButtonEnabled = false
+
+// this event occurs for declarations and overturns, and simply sets the declared card properties. overturn logic occurs elsewhere
+socket.on('declare', {card, player, n}):
+	if client is declaredPlayer:
+		currentButton = 'reinforce'
+		if client has another declaredCard in hand:
+			currentButtonEnabled = true
+			prevDeclaredCard = declaredCard
+	else:
+		currentButton = overturn
+	declaredCard = card
+	declaredPlayer = player
+	declareNumberofCards = n
+	declaredHandSize = hand.length
+
+	playCards(card * n, player)
+
+	unhighlight all
+	deselect all
+
+Draw (server)
+
+// before this, the server will wait for all players to send something that indicates they are all loaded and ready
+let drawnCards = 0;
+drawCard {
+	let { player, card } = gs.drawCard();
+	drawnCards++;
+	emitToPlayer(player, 'drawCard', card.serialize());
+
+	if (drawnCards < 100):
+		setTimeout(drawCard, 1000)
+}
+
+drawCard();
+
+Bottom
+Play
+Score

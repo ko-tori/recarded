@@ -1,4 +1,5 @@
 const fileLetters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const levels = [null, null, '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 var deck = [];
 var hand = [];
 var table = [[], [], [], [], []];
@@ -9,6 +10,7 @@ var declaredCard;
 var playerNames = ['ああああああああああああああああ', 'プレーヤー・トゥー', 'Player 3', 'Player 4'];
 var playerTeams = ['?', '?', '?', '?'];
 var playerPoints = [0, 0, 0, 0, 0];
+var playerLevels = [2, 2, 2, 2, 2];
 const TEAM_ENUM = ['?', 'Defending', 'Attacking'];
 
 var playerPosition = 0;
@@ -44,7 +46,6 @@ var lastTime;
 var elapsedSinceLastLoop;
 var animationSpeed = 6 / 25;
 
-var playButtonHovered = false;
 var buttonblur = 0;
 var buttonblurInterp = 0;
 
@@ -296,12 +297,19 @@ class Card {
 	}
 }
 
-var drawUserInfo = function(ctx, name, team, points, size, align, x, y, maxW) {
+var drawUserInfo = function(ctx, i, size, align, x, y, maxW) {
+	let p = (i + playerPosition) % 5;
+	let name = playerNames[p];
+	let level = playerLevels[p];
+	let team = playerTeams[p];
+	let points = playerPoints[p];
+
 	ctx.font = `${size - 6}px 'Titillium Web'`;
 	ctx.textAlign = align;
-	ctx.fillText(name, x, y - size, maxW);
-	ctx.fillText("Team: " + TEAM_ENUM[team], x, y, maxW);
-	ctx.fillText("Points: " + points, x, y + size, maxW);
+	ctx.fillText(name, x, y - size * 1.5, maxW);
+	ctx.fillText("Level: " + levels[level], x, y - size * 0.5, maxW);
+	ctx.fillText("Team: " + TEAM_ENUM[team], x, y + size * 0.5, maxW);
+	ctx.fillText("Points: " + points, x, y + size * 1.5, maxW);
 };
 
 const tableCenterFuncs = [
@@ -370,7 +378,7 @@ var playCards = function(cards) {
 	sendPlayCards(cards);
 }
 
-var playCardsHandler = function(cards, player=playerPosition) {
+var playCardsHandler = function(cards, player=playerPosition, flip=true) {
 	cards.sort(cardSorter);
 	if (cards.length == 0) {
 		return;
@@ -404,9 +412,11 @@ var playCardsHandler = function(cards, player=playerPosition) {
 		cards[i].renderer = new TableCardRenderer(cards, i, img, w, h, x, y, rot, fx, fy);
 	}
 
-	if (table[p].length > 0) {
-		for (let card of table[p][table[p].length - 1]) {
-			card.renderer.flipped = true;
+	if (flip) {
+		if (table[p].length > 0) {
+			for (let card of table[p][table[p].length - 1]) {
+				card.renderer.flipped = true;
+			}
 		}
 	}
 
@@ -451,10 +461,6 @@ var align = function() {
 	$('#priority-canvas').attr("width", width)
 		.attr("height", height);
 
-	$('#test').css({
-		bottom: width / 24 + 20
-	});
-
 	setCardParams();
 };
 
@@ -487,14 +493,6 @@ var clickListener = function(e) {
 			selected.push(hovered);
 			hovered.renderer.selected = true;
 		}
-	} else if (playButtonHovered) {
-		let cards = [];
-		for (let card of selected) {
-			cards.push(card);
-			removeCard(hand.indexOf(card));
-		}
-		selected = [];
-		playCards(cards);
 	} else {
 		for (let card of selected) {
 			card.renderer.selected = false;
@@ -502,7 +500,7 @@ var clickListener = function(e) {
 		selected = [];
 	}
 
-	document.getElementById('test').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
+	document.getElementById('selectedCards').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
 };
 
 addEventListener('click', clickListener);
@@ -516,13 +514,88 @@ var contextMenuListener = function(e) {
 			selected.splice(i, 1);
 		}
 		
-		document.getElementById('test').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
+		document.getElementById('selectedCards').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
 	} else {
 		
 	}
 };
 
 addEventListener('contextmenu', contextMenuListener);
+
+$('#actionButton').click(e => {
+	if (currentButton == buttons.Play) {
+		let cards = [];
+		for (let card of selected) {
+			cards.push(card);
+			removeCard(hand.indexOf(card));
+		}
+		selected = [];
+		playCards(cards);
+	} else if (currentButton == buttons.Declare) {
+
+	} else if (currentButton == buttons.Overturn) {
+		
+	} else if (currentButton == buttons.Reinforce) {
+		
+	}
+});
+
+const buttons = {
+	Play: {
+		text: 'Play',
+		color: '#32cd32'
+	},
+	Declare: {
+		text: 'Declare',
+		color: '#d15434'
+	},
+	Overturn: {
+		text: 'Overturn',
+		color: '#c9281c'
+	},
+	Reinforce: {
+		text: 'Reinforce',
+		color: '#bf1174'
+	}
+};
+
+var currentButton = buttons.Play;
+var buttonEnabled = false;
+
+var setButton = function(b) {
+	if (!buttons[b]) {
+		console.error(b, 'not a defined button');
+		return;
+	}
+	currentButton = buttons[b];
+
+	$('#actionButton')[0].innerHTML = currentButton.text;
+	updateButtonStyles();
+};
+
+var setButtonEnabled = function(e) {
+	buttonEnabled = e;
+
+	if (e) {
+		$('#actionButton').addClass('activeActionButton');
+	} else {
+		$('#actionButton').removeClass('activeActionButton');
+	}
+
+	updateButtonStyles();
+};
+
+var updateButtonStyles = function() {
+	if (buttonEnabled) {
+		$('#actionButton').css({
+			'background-color': currentButton.color
+		});
+	} else {
+		$('#actionButton').css({
+			'background-color': 'grey'
+		});
+	}
+};
 
 var init = function(callback) {
 	let c = 0;
@@ -648,7 +721,7 @@ var render = function(currentTime) {
 	for (let player of table) {
 		for (let group of player) {
 			for (let card of group) {
-				if (card.renderer.hovered) {
+				if (!card.renderer.flipped && card.renderer.hovered) {
 					card.render(pctx);
 				} else {
 					card.render(ctx);
@@ -685,13 +758,13 @@ var render = function(currentTime) {
 	// player names
 	ctx.textBaseline = 'middle';
 	ctx.textAlign = 'end';
-	drawUserInfo(ctx, playerNames[(3 + playerPosition) % 5], playerTeams[(3 + playerPosition) % 5], playerPoints[(3 + playerPosition) % 5], tableH / 16, 'end', tableX - 5, tableY + tableH / 4, tableX - 10);
-	drawUserInfo(ctx, playerNames[(4 + playerPosition) % 5], playerTeams[(4 + playerPosition) % 5], playerPoints[(4 + playerPosition) % 5], tableH / 16, 'end', tableX - 5, tableY + 3 * tableH / 4, tableX - 10);
+	drawUserInfo(ctx, 3, tableH / 16, 'end', tableX - 5, tableY + tableH / 4, tableX - 10);
+	drawUserInfo(ctx, 4, tableH / 16, 'end', tableX - 5, tableY + 3 * tableH / 4, tableX - 10);
 
 	ctx.textAlign = 'start';
-	drawUserInfo(ctx, playerNames[(2 + playerPosition) % 5], playerTeams[(2 + playerPosition) % 5], playerPoints[(2 + playerPosition) % 5], tableH / 16, 'start', tableX + tableW + 5, tableY + tableH / 4, tableX - 10);
-	drawUserInfo(ctx, playerNames[(1 + playerPosition) % 5], playerTeams[(1 + playerPosition) % 5], playerPoints[(1 + playerPosition) % 5], tableH / 16, 'start', tableX + tableW + 5, tableY + 3 * tableH / 4, tableX - 10);
-	drawUserInfo(ctx, playerNames[playerPosition], playerTeams[playerPosition], playerPoints[playerPosition], tableH / 14, 'start', 10, height - tableH / 7 - 20);
+	drawUserInfo(ctx, 2, tableH / 16, 'start', tableX + tableW + 5, tableY + tableH / 4, tableX - 10);
+	drawUserInfo(ctx, 1, tableH / 16, 'start', tableX + tableW + 5, tableY + 3 * tableH / 4, tableX - 10);
+	drawUserInfo(ctx, 0, tableH / 14, 'start', 10, height - tableH / 7 - 20);
 
 	ctx.restore();
 
@@ -734,40 +807,11 @@ var render = function(currentTime) {
 		hovered = undefined;
 	}
 
-	// play button
-	ctx.save();
-	let buttonWidth = width / 8;
-	let buttonHeight = buttonWidth / 3;
-	if (mouseX > width - buttonWidth - 10 && mouseX < width - 10 && mouseY > height - buttonHeight - 10 && mouseY < height - 10) {
-		buttonblur = buttonWidth / 10;
-		playButtonHovered = true;
-		pointer = true;
-	} else {
-		buttonblur = 0;
-		playButtonHovered = false;
-	}
-
 	if (pointer) {
 		$(document.body).addClass('pointer');
 	} else {
 		$(document.body).removeClass('pointer');
 	}
-
-	buttonblurInterp += (buttonblur - buttonblurInterp) / 30 * elapsedSinceLastLoop * animationSpeed;
-	ctx.shadowBlur = buttonblurInterp;
-	ctx.shadowColor = 'green';
-
-	ctx.fillStyle = '#32cd32';
-	ctx.fillRect(width - buttonWidth - 10, height - buttonHeight - 10, buttonWidth, buttonHeight);
-	ctx.restore();
-	ctx.save();
-	ctx.fillStyle = 'white';
-	ctx.font = `bold ${buttonHeight * 0.75}px Titillium Web`;
-	ctx.textBaseline = 'middle';
-	ctx.textAlign = 'center';
-	ctx.fillText('Play!', width - buttonWidth / 2 - 10, height - buttonHeight / 2 - 10, buttonWidth);
-	// ctx.fillText('Declare!', width - buttonWidth / 2 - 10, height - buttonHeight / 2 - 10, buttonWidth);
-	ctx.restore();
 
 	window.requestAnimationFrame(render);
 };
@@ -781,9 +825,4 @@ function testHovers() {
 		hoverCard(n);
 		setTimeout(() => f(n + 1), 200);
 	})(0);
-}
-
-function testPlayCards(p=1) {
-	declaredCard = new Card('C', 2);
-	playCards([new Card('J', 1), new Card('J', 1)], playerPosition + p);
 }
