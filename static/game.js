@@ -1,19 +1,34 @@
 const fileLetters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const levels = [null, null, '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+var levelToNum = x => {
+	return x == 14 ? 1 : x;
+};
+
 var deck = [];
 var hand = [];
 var table = [[], [], [], [], []];
 
-// game information vars (placeholders for now)
-var declaredCard;
+// game information vars
+var trumpCard;
+var personalDeclaredCard;
+var declareNumberofCards;
+var declaredPlayer;
+var declaredTurn;
+var drawnCards = 0;
+var phase;
 
+// player info
 var playerNames = ['ああああああああああああああああ', 'プレーヤー・トゥー', 'Player 3', 'Player 4'];
 var playerTeams = ['?', '?', '?', '?'];
 var playerPoints = [0, 0, 0, 0, 0];
 var playerLevels = [2, 2, 2, 2, 2];
 const TEAM_ENUM = ['?', 'Defending', 'Attacking'];
 
+// client player info
 var playerPosition = 0;
+var declarable;
+var handAtDeclaration = [];
 
 var friendCard;
 
@@ -51,6 +66,8 @@ var buttonblurInterp = 0;
 
 var tableDim;
 
+OffscreenCanvas = OffscreenCanvas || Canvas;
+
 class TableCardRenderer {
 	constructor(group, i, img, w, h, x, y, rot0, playCenterX, playCenterY) {
 		this.group = group;
@@ -83,7 +100,30 @@ class TableCardRenderer {
 		this.textAlpha = 0;
 	}
 
-	render(ctx) {
+	render(ctx, ctx2) {
+		// render shadow
+		ctx.save();
+		ctx.translate(this.tableCenterX + this.xTarget, this.tableCenterY + this.yTarget);
+		ctx.rotate(this.rot);
+		let w = width / 20;
+		let h = w / CARD_ASPECT;
+		let osc = new OffscreenCanvas(w, h);
+		let tempctx = osc.getContext('2d');
+		tempctx.drawImage(this.img, 0, 0, w, h);
+
+		tempctx.globalCompositeOperation = 'source-in';
+
+		tempctx.fillStyle = `rgba(0, 0, 0, 1)`;
+		tempctx.fillRect(0, 0, w, h);
+
+		ctx.globalAlpha = this.textAlphaInterp ** 2 / 20;
+		ctx.drawImage(osc, -w / 2, -h / 2, w, h);
+		ctx.restore();
+
+		if (ctx2 && !this.flipped && this.hovered) {
+			ctx = ctx2;
+		}
+		
 		ctx.save();
 		ctx.translate(this.tableCenterX + this.x, this.tableCenterY + this.y);
 		ctx.rotate(this.rotInterp);
@@ -95,10 +135,12 @@ class TableCardRenderer {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'top';
 
-		if (CENTER_HOVER) {
-			ctx.fillText(analyzeHand(this.group, declaredCard), width / 2, height / 2 + this.hInterp / 2 + 10);
-		} else {
-			ctx.fillText(analyzeHand(this.group, declaredCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+		if (phase == 'Play') {
+			if (CENTER_HOVER) {
+				ctx.fillText(analyzeHand(this.group, trumpCard), width / 2, height / 2 + this.hInterp / 2 + 10);
+			} else {
+				ctx.fillText(analyzeHand(this.group, trumpCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+			}
 		}
 
 		if (!this.flipped && this.hovered) {
@@ -168,6 +210,7 @@ class HandCardRenderer {
 
 		this.hovered = false;
 		this.selected = false;
+		this.enabled = false;
 
 		this.blur = 0;
 		this.blurInterp = 0;
@@ -175,29 +218,47 @@ class HandCardRenderer {
 
 	render(ctx) {
 		let [i, n, r, w, h] = [this.i, this.n, this.r, this.w, this.h];
-		if (this.selected) {
-			this.targetOffY = -h / 5;
-		} else if (this.hovered) {
-			this.targetOffY = -h / 7;
-		} else {
-			this.targetOffY = 0;
+		this.targetOffY = 0;
+		if (this.enabled) {
+			if (this.selected) {
+				this.targetOffY = -h / 5;
+			} else if (this.hovered) {
+				this.targetOffY = -h / 7;
+			}
 		}
 
 		ctx.save();
 		ctx.rotate(this.rotInterp);
-		ctx.shadowColor = '#FADA5E';
-		ctx.shadowBlur = this.blurInterp;
-		this.blur = this.selected ? 30 : 0;
-		ctx.drawImage(this.img, this.offX - w / 2, -r + this.offY, w, h);
-		
+		if (this.enabled) {
+			ctx.shadowColor = '#FADA5E';
+			ctx.shadowBlur = this.blurInterp;
+			this.blur = this.selected ? 30 : 0;
+			ctx.drawImage(this.img, this.offX - w / 2, -r + this.offY, w, h);
+		} else {
+			let osc = new OffscreenCanvas(w, h);
+			let ctx2 = osc.getContext('2d');
+			ctx2.drawImage(this.img, 0, 0, w, h);
+
+			ctx2.globalCompositeOperation = 'source-atop';
+
+			ctx2.fillStyle = `rgba(0, 0, 0, 0.1)`;
+			ctx2.fillRect(0, 0, w, h);
+
+			ctx.drawImage(osc, this.offX - w / 2, -r + this.offY, w, h);
+		}
 		ctx.restore();
 
 		this.offX += (this.targetOffX - this.offX) / 15 * elapsedSinceLastLoop * animationSpeed;
 		this.offY += (this.targetOffY - this.offY) / 15 * elapsedSinceLastLoop * animationSpeed;
 		this.iInterp += (this.i - this.iInterp) / 15 * elapsedSinceLastLoop * animationSpeed;
 		this.rotInterp += (this.rot - this.rotInterp) / 15 * elapsedSinceLastLoop * animationSpeed;
+		if (isNaN(this.rotInterp)) {
+			this.rotInterp = 0;
+		}
 		this.blurInterp += (this.blur - this.blurInterp) / 10 * elapsedSinceLastLoop * animationSpeed;
-		if (this.blurInterp < 0.5) this.blurInterp = 0;
+		if (this.blurInterp < 0.5) {
+			this.blurInterp = 0;
+		}
 	}
 
 	getPosRot() {
@@ -269,8 +330,8 @@ class Card {
 		return longLetters[this.num] + ' of ' + suits[this.suit];
 	}
 
-	render(ctx) {
-		this.renderer.render(ctx);
+	render(ctx, ctx2) {
+		this.renderer.render(ctx, ctx2);
 	}
 
 	checkHit(x, y) {
@@ -282,6 +343,9 @@ class Card {
 	}
 
 	equals(other) {
+		if (!other) {
+			return false;
+		}
 		return this.suit == other.suit && this.num == other.num;
 	}
 
@@ -485,7 +549,7 @@ addEventListener('mousemove', mouseMoveListener);
 // addEventListener('mousedown', mouseDownListener);
 
 var clickListener = function(e) {
-	if (hovered) {
+	if (hovered && hovered.renderer.enabled) {
 		if (hovered.renderer.selected) {
 			hovered.renderer.selected = false;
 			selected.splice(selected.indexOf(hovered), 1);
@@ -500,60 +564,144 @@ var clickListener = function(e) {
 		selected = [];
 	}
 
-	document.getElementById('selectedCards').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
+	if (phase == 'Play') {
+		document.getElementById('selectedCards').innerHTML = analyzeHand(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
+	}
 };
 
 addEventListener('click', clickListener);
 
 var contextMenuListener = function(e) {
 	e.preventDefault();
-	if (hovered) {
-		removeCard(hand.indexOf(hovered));
-		let i = selected.indexOf(hovered);
-		if (i >= 0) {
-			selected.splice(i, 1);
-		}
+	// if (hovered) {
+	// 	removeCard(hand.indexOf(hovered));
+	// 	let i = selected.indexOf(hovered);
+	// 	if (i >= 0) {
+	// 		selected.splice(i, 1);
+	// 	}
 		
-		document.getElementById('selectedCards').innerHTML = analyzeHand(selected, declaredCard).split(',').map(s => s.trim()).join('<br>');
-	} else {
+	// 	document.getElementById('selectedCards').innerHTML = analyzeHand(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
+	// } else {
 		
-	}
+	// }
 };
 
 addEventListener('contextmenu', contextMenuListener);
 
-$('#actionButton').click(e => {
-	if (currentButton == buttons.Play) {
-		let cards = [];
-		for (let card of selected) {
-			cards.push(card);
-			removeCard(hand.indexOf(card));
+var removeCardsFromHand = function(cards) {
+	if (cards instanceof Card) {
+		cards = [cards];
+	}
+	let r = [];
+	for (let card of cards) {
+		r.push(card);
+		let i = hand.indexOf(card);
+		if (i >= 0) {
+			hand.splice(i, 1);
 		}
+	}
+	
+	updateHandPositions();
+	return r;
+};
+
+$('#actionButton').click(e => {
+	if (currentButton == buttons.play) {
+		let cards = removeCardsFromHand(selected);
 		selected = [];
 		playCards(cards);
-	} else if (currentButton == buttons.Declare) {
+	} else if (currentButton == buttons.declare) {
+		if (buttonEnabled && selected.length > 0) {
+			setButton('reinforce');
+			let cards = removeCardsFromHand(selected);
+			selected = [];
+			playCardsHandler(cards, playerPosition, false);
+			socket.emit('declare', {
+				card: cards[0].serialize(),
+				player: playerPosition,
+				n: cards.length
+			});
 
-	} else if (currentButton == buttons.Overturn) {
-		
-	} else if (currentButton == buttons.Reinforce) {
-		
+			personalDeclaredCard = cards[0];
+			trumpCard = cards[0];
+			declaredPlayer = playerPosition;
+			declareNumberofCards = cards.length;
+			declaredTurn = drawnCards;
+			handAtDeclaration = hand.slice();
+		}
+	} else if (currentButton == buttons.overturn) {
+		if (buttonEnabled && selected.length > 1) {
+			let cards = removeCardsFromHand(selected);
+			selected = [];
+			playCardsHandler(cards, playerPosition, false);
+			socket.emit('declare', {
+				card: cards[0].serialize(),
+				player: playerPosition,
+				n: 2
+			});
+
+			trumpCard = cards[0];
+			declaredPlayer = playerPosition;
+			declareNumberofCards = cards.length;
+			declaredTurn = drawnCards;
+			handAtDeclaration = hand.slice();
+		}
+	} else if (currentButton == buttons.reinforce) {
+		if (buttonEnabled) {
+			let secondCard = handAtDeclaration.find(c => c.equals(personalDeclaredCard));
+			if (secondCard) {
+				let cards = removeCardsFromHand(secondCard);
+
+				playCardsHandler(cards, playerPosition, false);
+
+				mergeDeclaredCards(playerPosition);
+				
+				socket.emit('declare', {
+					card: cards[0].serialize(),
+					player: playerPosition,
+					n: 2
+				});
+
+				trumpCard = cards[0];
+				declaredPlayer = playerPosition;
+				declareNumberofCards = 2;
+				declaredTurn = drawnCards;
+				handAtDeclaration = hand.slice();
+			}
+		}
 	}
 });
 
+var mergeDeclaredCards = function(p) {
+	let i = (p - playerPosition + 5) % 5;
+	let card1 = table[i][0][0];
+	let card2 = table[i][1][0];
+	let group = [card1, card2];
+	card1.renderer.group = group;
+	card1.renderer.i = 0;
+	card1.setRendererParams();
+	card2.renderer.group = group;
+	card2.renderer.i = 1;
+	card2.setRendererParams();
+	table[i][0] = group;
+
+	table[i].splice(1, 1);
+};
+
 const buttons = {
-	Play: {
+	play: {
 		text: 'Play',
 		color: '#32cd32'
 	},
-	Declare: {
+	declare: {
 		text: 'Declare',
 		color: '#d15434'
 	},
-	Overturn: {
+	overturn: {
 		text: 'Overturn',
 		color: '#c9281c'
 	},
-	Reinforce: {
+	reinforce: {
 		text: 'Reinforce',
 		color: '#bf1174'
 	}
@@ -597,6 +745,13 @@ var updateButtonStyles = function() {
 	}
 };
 
+var loadCardImage = function(c, file, callback) {
+	let i = new Image;
+	i.src = `/cards/${file}.png`;
+	i.onload = callback;
+	cardImgs[c] = i;
+};
+
 var init = function(callback) {
 	let c = 0;
 
@@ -608,22 +763,12 @@ var init = function(callback) {
 		}
 	};
 
-	let i = new Image;
-	i.src = '/cards/J1.png';
-	i.onload = finish;
-	cardImgs['J1'] = i;
-
-	i = new Image;
-	i.src = '/cards/J2.png';
-	i.onload = finish;
-	cardImgs['J2'] = i;
+	loadCardImage('J1', 'J1', finish);
+	loadCardImage('J2', 'J2', finish);
 
 	for (let suit of ['C', 'D', 'H', 'S']) {
 		for (let n = 1; n <= 13; n++) {
-			let i = new Image;
-			i.src = '/cards/' + fileLetters[n] + suit + '.png';
-			i.onload = finish;
-			cardImgs[suit + n] = i;
+			loadCardImage(suit + n, fileLetters[n] + suit, finish);
 		}
 	}
 };
@@ -645,15 +790,108 @@ var hoverCard = function(n) {
 };
 
 var unhoverCards = function() {
-	for (let i = 0; i < hand.length; i++) {
-		hand[i].renderer.hovered = false;
+	for (let card of hand) {
+		card.renderer.hovered = false;
 	}
 };
 
+var deselectAll = function() {
+	selected = [];
+	for (let card of hand) {
+		card.renderer.selected = false;
+	}
+};
+
+var disableAll = function() {
+	for (let card of hand) {
+		card.renderer.enabled = false;
+	}
+};
+
+var resetCards = function() {
+	hovered = null;
+	unhoverCards();
+	deselectAll();
+	disableAll();
+};
+
 var declareCard = function(card) {
-	declaredCard = card;
+	trumpCard = card;
 	hand.sort(cardSorter);
 	updateHandPositions();
+};
+
+var isCardDeclarable = card => {
+	if (card.suit != 'J' &&	card.num == levelToNum(playerLevels[playerPosition])) {
+		if (selected.length > 0) {
+			return card.equals(selected[0]);
+		} else {
+			return true;
+		}
+	}
+	return false;
+}
+
+var mainLoop = function(currentTime) {
+	if (phase == 'Draw') {
+		if (currentButton != buttons.reinforce) {
+			if (trumpCard) {
+				setButton('overturn');
+				setButtonEnabled(false);
+				if (declareNumberofCards == 1) {
+					if (declarable) {
+						// check if has pair before declaredTurn
+						for (let suit of Object.keys(suits)) {
+							let c = [];
+							for (let card of handAtDeclaration) {
+								if (card.suit == suit) {
+									card.renderer.enabled = false;
+									if (isCardDeclarable(card)) {
+										c.push(card);
+									}
+								}
+							}
+							if (c.length >= 2) {
+								for (let card of c) {
+									card.renderer.enabled = true;
+								}
+
+								setButtonEnabled(selected.length > 1);
+							}
+						}
+					}
+				}
+			} else {
+				setButton('declare');
+				if (declarable && hand.filter(c => {
+						if (isCardDeclarable(c)) {
+							c.renderer.enabled = true;
+							return true;
+						} else {
+							c.renderer.enabled = false;
+						}
+						return false;
+					}).length > 0) {
+					setButtonEnabled(selected.length > 0);
+				} else {
+					setButtonEnabled(false);
+				}
+			}
+		} else {
+			setButtonEnabled(false);
+			if (drawnCards < declaredTurn + 10) {
+				setButtonEnabled(handAtDeclaration.filter(c => {
+					if (c.equals(personalDeclaredCard)) {
+						c.renderer.enabled = true;
+						return true;
+					}
+				}).length > 0);
+			}
+		}
+	}
+
+	render(currentTime);
+	window.requestAnimationFrame(mainLoop);
 };
 
 var render = function(currentTime) {
@@ -721,11 +959,7 @@ var render = function(currentTime) {
 	for (let player of table) {
 		for (let group of player) {
 			for (let card of group) {
-				if (!card.renderer.flipped && card.renderer.hovered) {
-					card.render(pctx);
-				} else {
-					card.render(ctx);
-				}
+				card.render(ctx, pctx);
 			}
 		}
 	}
@@ -742,10 +976,10 @@ var render = function(currentTime) {
 	ctx.font = `${h / 8}px Titillium Web`;
 
 	ctx.fillText('Declared Card', tableX + 5 * tableW / 12, tableY);
-	if (!declaredCard) {
+	if (!trumpCard) {
 		ctx.drawImage(unknown, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
 	} else {
-		ctx.drawImage(declaredCard.img, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
+		ctx.drawImage(trumpCard.img, tableX + 5 * tableW / 12 - w / 2, tableY + h / 8, w, h);
 	}
 
 	ctx.fillText('Friend Card', tableX + 7 * tableW / 12, tableY);
@@ -807,13 +1041,11 @@ var render = function(currentTime) {
 		hovered = undefined;
 	}
 
-	if (pointer) {
+	if (hovered && hovered.renderer.enabled) {
 		$(document.body).addClass('pointer');
 	} else {
 		$(document.body).removeClass('pointer');
 	}
-
-	window.requestAnimationFrame(render);
 };
 
 function testHovers() {
@@ -825,4 +1057,8 @@ function testHovers() {
 		hoverCard(n);
 		setTimeout(() => f(n + 1), 200);
 	})(0);
+}
+
+function testDrawCard() {
+	socket.emit('drawtest');
 }

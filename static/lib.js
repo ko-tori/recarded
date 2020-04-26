@@ -2,7 +2,7 @@ const letters = [0, 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q',
 const longLetters = [0, 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
 const numRanks = [0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades', 'J': 'Joker'};
-const suitRanks = {'C': 0, 'D': 1, 'H': 2, 'S': 3, 'J': 5};
+const suitRanks = {'C': 0, 'D': 1, 'S': 2, 'H': 3, 'J': 5};
 const playerdeckdict = { 5 : { 2: 20 } };
 const Phases = ["Draw", "Bottom", "Play", "Score"];
 const tractors = ["Pair", "Tractor", "Triple Tractor", "Quadruple Tractor", "Quintuple Tractor", "Sextuple Tractor", "Septuple Tractor", "Octuple Tractor", "Nonuple Tractor", "Decuple Tractor", "Undecuple Tractor", "Duodecuple Tractor"];
@@ -24,8 +24,8 @@ function returnOther(num) {
 	return listVal;
 }
 
-function analyzeHand(cards, declaredCard) {
-	if (!declaredCard || cards.length == 0) {
+function analyzeHand(cards, trumpCard) {
+	if (!trumpCard || cards.length == 0) {
 		return '';
 	}
 	var cTrack = new Array(54);
@@ -35,20 +35,20 @@ function analyzeHand(cards, declaredCard) {
 	var pairName = "";
 	var singleName = "";
 
-	if (declaredCard.suit == 'D') {
+	if (trumpCard.suit == 'D') {
 		trumpNum += 13;
 	}
-	if (declaredCard.suit == 'H') {
+	if (trumpCard.suit == 'H') {
 		trumpNum += 26;
 	}
-	if (declaredCard.suit == 'S') {
+	if (trumpCard.suit == 'S') {
 		trumpNum += 39;
 	}
-	if (declaredCard.suit == 'J') {
+	if (trumpCard.suit == 'J') {
 		trumpNum += 52;
 	}
 		
-	trumpNum += declaredCard.num - 1;
+	trumpNum += trumpCard.num - 1;
 		
 	// console.log(trumpNum);
 	
@@ -77,14 +77,14 @@ function analyzeHand(cards, declaredCard) {
 	if(cTrack[trumpNum] == 2) {
 		if(cTrack[52] == 2) {
 			if(cTrack[53] == 2) {
-				tractorName += ", Trump Triple Tractor (Big " + letters[declaredCard.num] + "-Small Joker-Big Joker)";
+				tractorName += ", Trump Triple Tractor (Big " + letters[trumpCard.num] + "-Small Joker-Big Joker)";
 			}
 			else{
-				tractorName += ", Trump Double Tractor (Big " + letters[declaredCard.num] + "-Small Joker)";
+				tractorName += ", Trump Double Tractor (Big " + letters[trumpCard.num] + "-Small Joker)";
 			}	
 		}
 		else{
-			pairName += ", Trump Pair (Big " + letters[declaredCard.num] + ")";
+			pairName += ", Trump Pair (Big " + letters[trumpCard.num] + ")";
 			if(cTrack[53] == 2) {
 				pairName += ", Trump Pair (Big Joker)";
 			}
@@ -104,16 +104,16 @@ function analyzeHand(cards, declaredCard) {
 		}
 	}	
 	if(cTrack[trumpNum] == 1){
-		singleName += ", Trump Single (Big " + letters[declaredCard.num] + ")"; 
+		singleName += ", Trump Single (Big " + letters[trumpCard.num] + ")"; 
 	}
 	//check for the other declare pairs
 	otherDeclared = returnOther(trumpNum);
 	for(i = 0; i < otherDeclared.length; i++) {
 		if(cTrack[otherDeclared[i]] == 2) {
-			pairName += ", Trump Pair (Small " + letters[declaredCard.num] + ")";
+			pairName += ", Trump Pair (Small " + letters[trumpCard.num] + ")";
 		}
 		if(cTrack[otherDeclared[i]] == 1) {
-			singleName += ", Trump Single (Small " + letters[declaredCard.num] + ")";
+			singleName += ", Trump Single (Small " + letters[trumpCard.num] + ")";
 		}
 	}
 	//check for pairs/tractors/single trump
@@ -250,12 +250,12 @@ function actualRanks(card) {
 	let actualNumRank = numRanks[card.num];
 
 	if (card.suit != 'J') {
-		if (card.suit == declaredCard.suit) {
+		if (card.suit == trumpCard.suit) {
 			actualSuitRank = 4;
-			if (card.num == declaredCard.num) {
+			if (card.num == trumpCard.num) {
 				actualNumRank = 16;
 			}
-		} else if (card.num == declaredCard.num) {
+		} else if (card.num == trumpCard.num) {
 			actualSuitRank = 4;
 			actualNumRank = 15 + suitRanks[card.suit] / 4;
 		}
@@ -268,7 +268,7 @@ function actualRanks(card) {
 
 const cardSorter = (a, b) => {
 	let srA, nrA, srB, nrB;
-	if (!declaredCard) {
+	if (phase == 'Draw' || !trumpCard) {
 		srA = suitRanks[a.suit];
 		nrA = numRanks[a.num];
 		srB = suitRanks[b.suit];

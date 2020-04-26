@@ -181,10 +181,13 @@
 	});
 
 	socket.on('initLobby', data => {
-		status = 'lobby';
+		status = data.status;
 		document.title = '找朋友 - Room ' + data.roomName;
 		lobbyInfo = data;
-		renderLobby();
+
+		if (status == 'lobby') {
+			renderLobby();
+		}
 
 		lobbyInitResolve();
 	});
@@ -245,16 +248,23 @@
 				if (p.name == lobbyInfo.you) {
 					hand = p.hand.map(c => new Card(c.suit, c.num, HandCardRenderer));
 					playerPosition = i;
+					declarable = p.declarable;
 				}
 			}
 
-			declaredCard = data.declaredCard;
+			trumpCard = data.trumpCard;
+			declareNumberofCards = data.declareNumberofCards;
+			declaredPlayer = data.declaredPlayer;
+			declaredTurn = data.declaredTurn;
+
+			phase = data.phase;
+			// add more as needed
 
 			// test declared card - TODO remove later
-			// declaredCard = new Card('C', 2);
+			// trumpCard = new Card('C', 2);
 
-			if (data.declaredCard) {
-				declaredCard = new Card(data.declaredCard.suit, data.declaredCard.num);
+			if (data.trumpCard) {
+				trumpCard = new Card(data.trumpCard.suit, data.trumpCard.num);
 			}
 
 			status = 'started';
@@ -265,7 +275,9 @@
 			hand.sort(cardSorter);
 			updateHandPositions();
 
-			window.requestAnimationFrame(render);
+			socket.emit('ready');
+
+			window.requestAnimationFrame(mainLoop);
 		});
 	});
 
@@ -276,6 +288,38 @@
 	});
 
 	// socket game events
+
+	socket.on('drawCard', c => {
+		drawnCards++;
+		if (!c) {
+			return; // someone else drew a card
+		}
+		let card = new Card(c.suit, c.num, HandCardRenderer);
+		let [r, cardH, cardW] = getHandCardDim();
+		card.setRendererParams(hand.length, hand.length, r, cardW, cardH);
+		card.renderer.offY = r / 2;
+		hand.push(card);
+		hand.sort(cardSorter);
+		updateHandPositions();
+	});
+
+	socket.on('declare', data => {
+		let {card, player, n, turn} = data;
+
+		if (declaredPlayer != playerPosition) {
+			setButton('overturn');
+		}
+
+		resetCards();
+
+		trumpCard = Card.deserialize(card);
+		declaredPlayer = player;
+		declareNumberofCards = n;
+		declaredTurn = turn;
+		handAtDeclaration = hand.slice();
+
+		playCardsHandler(new Array(n).fill(0).map(() => Card.deserialize(card)), player, false);
+	});
 
 	socket.on('playCards', data => {
 		let p = data.player;

@@ -50,7 +50,12 @@ async function getInvited(user) {
 async function loadRooms(condition = { status: { $in: ['lobby', 'started'] } }) {
     let res = new ObjectMap();
     for (let room of await Room.find(condition)) {
-        res.set(room._id, Game.load(room, room.game));
+        try {
+            let game = await Game.load(room, room.game);
+            res.set(room._id, game);
+        } catch (e) {
+
+        }
     }
 
     return res;
@@ -68,6 +73,8 @@ class Game {
     }
 
     async init() {
+        var ready = new Set();
+
         this.nsp = io.of('/r/' + this.room._id);
 
         this.nsp.on('connection', async socket => {
@@ -126,7 +133,7 @@ class Game {
                 players: players,
                 invited: invited,
                 you: socket.request.user.username,
-                status: 'lobby'
+                status: this.room.status
             });
 
             this.connected.push(socket.request.user._id, socket.id, socket.request.user.username);
@@ -188,20 +195,11 @@ class Game {
                     let temp = new Array(5).fill('empty');
                     temp.splice(0, players.length, ...players);
                     this.gameState = new GameState(temp.sort(() => 0.5 - Math.random()).map(u => u.username));
-                    for (var i = 0; i < this.gameState.numCards * this.gameState.numPlayers; i++) {
-                        this.gameState.drawCard();
-                    }
+                    this.playerOrder = temp.map(u => u._id);
                     this.room.status = 'started';
                     let gss = this.gameState.serialize(); // remove this later
                     for (let i = 0; i < 5; i++) {
-                        if (!players[i]) {
-                            continue;
-                        }
-
-                        for (let s of this.connected.getSockets(players[i]._id)) {
-                            // change this to serialize for player when that is done
-                            this.nsp.connected[s].emit('initGame', gss); // this.gameState.serializeForPlayer(i));
-                        }
+                        this.emitToPlayer(i, 'initGame', gss); // change to serialize for player
                     }
                     this.save();
                 }
@@ -210,7 +208,57 @@ class Game {
             socket.on('playCards', data => {
                 socket.broadcast.emit('playCards', data);
             });
+
+            socket.on('ready', force => {
+                ready.add(socket.request.user.username);
+                if (ready.size == 5 || force) {
+                    console.log('starting draw phase');
+                    let drawnCards = 0;
+                    let drawCard = () => {
+                        let { player, card } = this.gameState.drawCard();
+                        console.log(`player ${player} drew card ${card}. ${this.gameState.deck.cards.length} cards left`);
+                        drawnCards++;
+                        for (let p = 0; p < 5; p++) {
+                            if (p == player) {
+                                this.emitToPlayer(p, 'drawCard', card.serialize());
+                            } else {
+                                this.emitToPlayer(p, 'drawCard', null);
+                            }
+                        }
+
+                        if (this.gameState.deck.cards.length > 8) {
+                            setTimeout(drawCard, 500);
+                        } else {
+                            console.log('finished drawing');
+                            // post draw phase, set bottom or restart if no one declares
+                        }
+                    }
+
+                    drawCard();
+                }
+            });
+
+            socket.on('declare', data => {
+                let {card, player, n} = data;
+                let turn = this.gameState.declare(player, card, n);
+                socket.broadcast.emit('declare', {card, player, n, turn});
+            });
+
+            socket.on('drawtest', () => {
+                let { player, card } = this.gameState.drawCard();
+                // console.log(`player ${player} drew card ${card}. ${this.gameState.deck.cards.length} cards left`);
+                this.emitToPlayer(player, 'drawCard', card.serialize());
+            });
         });
+    }
+
+    emitToPlayer(i, msg, data) {
+        if (!this.playerOrder[i]) {
+            return;
+        }
+        for (let s of this.connected.getSockets(this.playerOrder[i])) {
+            this.nsp.connected[s].emit(msg, data);
+        }
     }
 
     save() {
@@ -223,8 +271,18 @@ class Game {
         this.room.save();
     }
 
-    static load(room, state) {
-        return new Game(room, GameState.deserialize(state));
+    static async load(room, state) {
+        let g = new Game(room, GameState.deserialize(state));
+        let players = await Promise.all(g.players.map(m => Account.findById(m)));
+        g.playerOrder = g.gameState.players.map(p => {
+            let player = players.find(p2 => p.name == p2.username);
+            if (player) {
+                return player._id;
+            }
+
+            return null;
+        });
+        return g;
     }
 }
 
