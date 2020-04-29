@@ -71,6 +71,16 @@
 			border-radius: 0px !important;
 		}
 
+		#infoPopup {
+			display: none;
+			background-color: #EEE;
+			border-radius: 5px;
+			font-size: 0.5em;
+			margin-bottom: 0.5em;
+			padding: 0.25em;
+			text-align: center;
+		}
+
 		.pointer {
 			cursor: pointer;
 		}
@@ -117,7 +127,7 @@
 		<a href='/'>Home</a>
 	</div>
 
-	<div id='gameui'><div id='selectedCards'></div><div id='actionButton'>Declare</div></div>
+	<div id='gameui'><div id='selectedCards'></div><div id='infoPopup'>teset</div><div id='actionButton'>Declare</div></div>
 	
 	<div id='game'>
 		<canvas id='canvas'></canvas>
@@ -127,6 +137,7 @@
 <script type="text/javascript" src="/lib.js"></script>
 <script type="text/javascript" src="/game.js"></script>
 <script type="text/javascript">
+	var temp1;
 	var lobbyInfo;
 	var status = 'loading';
 	var connected = [];
@@ -252,6 +263,8 @@
 				}
 			}
 
+			temp1 = data.deck.cards;
+
 			trumpCard = data.trumpCard;
 			declareNumberofCards = data.declareNumberofCards;
 			declaredPlayer = data.declaredPlayer;
@@ -299,8 +312,10 @@
 		card.setRendererParams(hand.length, hand.length, r, cardW, cardH);
 		card.renderer.offY = r / 2;
 		hand.push(card);
-		hand.sort(cardSorter);
-		updateHandPositions();
+		setTimeout(() => {
+			hand.sort(cardSorter);
+			updateHandPositions();
+		}, 500);
 	});
 
 	socket.on('declare', data => {
@@ -308,6 +323,23 @@
 
 		if (declaredPlayer != playerPosition) {
 			setButton('overturn');
+		}
+
+		if (currentButton == buttons.reinforce) {
+			let canReinforce = handAtDeclaration.filter(c => {
+				if (c.equals(personalDeclaredCard)) {
+					c.renderer.enabled = true;
+					return true;
+				}
+			}).length > 0;
+
+			if (canReinforce) {
+				setButtonEnabled(true);
+				showInfo('You have %t seconds to reinforce if you wish', 5000);
+				setTimeout(() => {
+					setButtonEnabled(false);
+				}, 5000);
+			}
 		}
 
 		resetCards();
@@ -321,11 +353,50 @@
 		playCardsHandler(new Array(n).fill(0).map(() => Card.deserialize(card)), player, false);
 	});
 
+	socket.on('restartDraw', () => {
+		hand = [];
+		socket.emit('ready');
+	});
+
+	socket.on('giveBottom', cards => {
+		phase = 'Bottom';
+
+		let n = hand.length + cards.length;
+		for (let c of cards) {
+			let card = new Card(c.suit, c.num, HandCardRenderer);
+			let [r, cardH, cardW] = getHandCardDim();
+			card.setRendererParams(hand.length, n, r, cardW, cardH);
+			card.renderer.offY = r / 2;
+			hand.push(card);
+		}
+
+		for (let card of hand) {
+			card.renderer.enabled = true;
+		}
+		setButton('bottomConfirm');
+		showInfo('Choose your bottom 8 cards', 5000);
+		
+		updateHandPositions();
+		setTimeout(() => {
+			hand.sort(cardSorter);
+			updateHandPositions();
+		}, 500);
+	});
+
+	socket.on('play', data => {
+		phase = 'Play';
+	});
+
 	socket.on('playCards', data => {
 		let p = data.player;
 		let cards = data.cards.map(c => Card.deserialize(c));
 
 		playCardsHandler(cards, p);
+	});
+
+	socket.on('info', data => {
+		let {text, duration} = data;
+		showInfo(text, duration);
 	});
 
 	function sendPlayCards(cards) {

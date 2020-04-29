@@ -5,7 +5,6 @@ var levelToNum = x => {
 	return x == 14 ? 1 : x;
 };
 
-var deck = [];
 var hand = [];
 var table = [[], [], [], [], []];
 
@@ -370,7 +369,7 @@ var drawUserInfo = function(ctx, i, size, align, x, y, maxW) {
 
 	ctx.font = `${size - 6}px 'Titillium Web'`;
 	ctx.textAlign = align;
-	ctx.fillText(name, x, y - size * 1.5, maxW);
+	ctx.fillText(name + (p == declaredPlayer ? ' ★' : ''), x, y - size * 1.5, maxW);
 	ctx.fillText("Level: " + levels[level], x, y - size * 0.5, maxW);
 	ctx.fillText("Team: " + TEAM_ENUM[team], x, y + size * 0.5, maxW);
 	ctx.fillText("Points: " + points, x, y + size * 1.5, maxW);
@@ -569,7 +568,7 @@ var clickListener = function(e) {
 	}
 };
 
-addEventListener('click', clickListener);
+$('#priority-canvas').click(clickListener);
 
 var contextMenuListener = function(e) {
 	e.preventDefault();
@@ -606,12 +605,15 @@ var removeCardsFromHand = function(cards) {
 };
 
 $('#actionButton').click(e => {
+	if (!buttonEnabled) {
+		return;
+	}
 	if (currentButton == buttons.play) {
 		let cards = removeCardsFromHand(selected);
 		selected = [];
 		playCards(cards);
 	} else if (currentButton == buttons.declare) {
-		if (buttonEnabled && selected.length > 0) {
+		if (selected.length > 0) {
 			setButton('reinforce');
 			let cards = removeCardsFromHand(selected);
 			selected = [];
@@ -630,7 +632,7 @@ $('#actionButton').click(e => {
 			handAtDeclaration = hand.slice();
 		}
 	} else if (currentButton == buttons.overturn) {
-		if (buttonEnabled && selected.length > 1) {
+		if (selected.length > 1) {
 			let cards = removeCardsFromHand(selected);
 			selected = [];
 			playCardsHandler(cards, playerPosition, false);
@@ -647,28 +649,30 @@ $('#actionButton').click(e => {
 			handAtDeclaration = hand.slice();
 		}
 	} else if (currentButton == buttons.reinforce) {
-		if (buttonEnabled) {
-			let secondCard = handAtDeclaration.find(c => c.equals(personalDeclaredCard));
-			if (secondCard) {
-				let cards = removeCardsFromHand(secondCard);
+		let secondCard = handAtDeclaration.find(c => c.equals(personalDeclaredCard));
+		if (secondCard) {
+			let cards = removeCardsFromHand(secondCard);
 
-				playCardsHandler(cards, playerPosition, false);
+			playCardsHandler(cards, playerPosition, false);
 
-				mergeDeclaredCards(playerPosition);
-				
-				socket.emit('declare', {
-					card: cards[0].serialize(),
-					player: playerPosition,
-					n: 2
-				});
+			mergeDeclaredCards(playerPosition);
+			
+			socket.emit('declare', {
+				card: cards[0].serialize(),
+				player: playerPosition,
+				n: 2
+			});
 
-				trumpCard = cards[0];
-				declaredPlayer = playerPosition;
-				declareNumberofCards = 2;
-				declaredTurn = drawnCards;
-				handAtDeclaration = hand.slice();
-			}
+			trumpCard = cards[0];
+			declaredPlayer = playerPosition;
+			declareNumberofCards = 2;
+			declaredTurn = drawnCards;
+			handAtDeclaration = hand.slice();
 		}
+	} else if (currentButton == buttons.bottomConfirm) {
+		let cards = removeCardsFromHand(selected);
+		selected = [];
+		socket.emit('bottom', cards.map(c => c.serialize()));
 	}
 });
 
@@ -704,6 +708,10 @@ const buttons = {
 	reinforce: {
 		text: 'Reinforce',
 		color: '#bf1174'
+	},
+	bottomConfirm: {
+		text: 'Confirm',
+		color: '#32cd32'
 	}
 };
 
@@ -743,6 +751,34 @@ var updateButtonStyles = function() {
 			'background-color': 'grey'
 		});
 	}
+};
+
+var currentInfoTimeout1;
+var currentInfoTimeout2;
+var showInfo = function(text, duration) {
+	clearTimeout(currentInfoTimeout1);
+	clearTimeout(currentInfoTimeout2);
+
+	text = '\u26A0 ' + text;
+	let i = $('#infoPopup');
+	i[0].innerHTML = text.replace('%t', parseInt(duration / 1000));
+
+	let elapsed = 0;
+	let f = () => {
+		elapsed++;
+		let timeLeft = parseInt(duration / 1000 - elapsed);
+		i[0].innerHTML = text.replace('%t', timeLeft);
+
+		if (timeLeft >= 1) {
+			currentInfoTimeout1 = setTimeout(f, 1000);
+		}
+	};
+	currentInfoTimeout1 = setTimeout(f, 1000);
+
+	i.fadeIn();
+	currentInfoTimeout2 = setTimeout(() => {
+		i.fadeOut();
+	}, duration);
 };
 
 var loadCardImage = function(c, file, callback) {
@@ -877,16 +913,20 @@ var mainLoop = function(currentTime) {
 					setButtonEnabled(false);
 				}
 			}
-		} else {
-			setButtonEnabled(false);
-			if (drawnCards < declaredTurn + 10) {
-				setButtonEnabled(handAtDeclaration.filter(c => {
-					if (c.equals(personalDeclaredCard)) {
-						c.renderer.enabled = true;
-						return true;
-					}
-				}).length > 0);
+		}
+	} else if (phase == 'Bottom') {
+		if (selected.length == 8) {
+			for (let card of hand) {
+				if (!card.renderer.selected) {
+					card.renderer.enabled = false;
+				}
 			}
+			setButtonEnabled(true);
+		} else {
+			for (let card of hand) {
+				card.renderer.enabled = true;
+			}
+			setButtonEnabled(false);
 		}
 	}
 

@@ -197,9 +197,8 @@ class Game {
                     this.gameState = new GameState(temp.sort(() => 0.5 - Math.random()).map(u => u.username));
                     this.playerOrder = temp.map(u => u._id);
                     this.room.status = 'started';
-                    let gss = this.gameState.serialize(); // remove this later
                     for (let i = 0; i < 5; i++) {
-                        this.emitToPlayer(i, 'initGame', gss); // change to serialize for player
+                        this.emitToPlayer(i, 'initGame', this.gameState.serializeForPlayer(i)); // change to serialize for player
                     }
                     this.save();
                 }
@@ -207,34 +206,53 @@ class Game {
 
             socket.on('playCards', data => {
                 socket.broadcast.emit('playCards', data);
-            });
+            });                
 
             socket.on('ready', force => {
                 ready.add(socket.request.user.username);
                 if (ready.size == 5 || force) {
-                    console.log('starting draw phase');
-                    let drawnCards = 0;
-                    let drawCard = () => {
-                        let { player, card } = this.gameState.drawCard();
-                        console.log(`player ${player} drew card ${card}. ${this.gameState.deck.cards.length} cards left`);
-                        drawnCards++;
-                        for (let p = 0; p < 5; p++) {
-                            if (p == player) {
-                                this.emitToPlayer(p, 'drawCard', card.serialize());
-                            } else {
-                                this.emitToPlayer(p, 'drawCard', null);
+                    if (this.gameState.phase == 'Draw') {
+                        console.log('starting draw phase');
+                        let drawCard = () => {
+                            let { player, card } = this.gameState.drawCard();
+                            // console.log(`player ${player} drew card ${card}. ${this.gameState.deck.cards.length} cards left`);
+                            for (let p = 0; p < 5; p++) {
+                                if (p == player) {
+                                    this.emitToPlayer(p, 'drawCard', card.serialize());
+                                } else {
+                                    this.emitToPlayer(p, 'drawCard', null);
+                                }
                             }
-                        }
 
-                        if (this.gameState.deck.cards.length > 8) {
-                            setTimeout(drawCard, 500);
-                        } else {
-                            console.log('finished drawing');
-                            // post draw phase, set bottom or restart if no one declares
+                            if (this.gameState.deck.cards.length > 8) {
+                                setTimeout(drawCard, 500);
+                            } else {
+                                console.log('finished drawing');
+                                if (!this.gameState.trumpCard || this.gameState.declaredPlayer == -1) {
+                                    this.nsp.emit('info', {
+                                        text: 'There will be a redraw if no one declares in %t',
+                                        time: 10000
+                                    });
+
+                                    setTimeout(() => {
+                                        this.gameState.restartDraw();
+                                        this.nsp.emit('restartDraw');
+                                    }, 10000);
+                                } else {
+                                    this.gameState.phase = 'Bottom';
+                                    let remaining = this.gameState.giveBottom();
+                                    this.emitToPlayer(this.gameState.declaredPlayer, 'giveBottom', remaining.map(card => card.serialize()));
+                                }
+                            }
+                        };
+
+                        setTimeout(drawCard, 500);
+                    } else if (phase == 'Bottom') {
+                        if (this.gameState.bottom) {
+                            // bottom has not been declared, person is still picking
+                            this.emitToPlayer(this.gameState.declaredPlayer, 'giveBottom', []);
                         }
                     }
-
-                    drawCard();
                 }
             });
 
@@ -244,10 +262,10 @@ class Game {
                 socket.broadcast.emit('declare', {card, player, n, turn});
             });
 
-            socket.on('drawtest', () => {
-                let { player, card } = this.gameState.drawCard();
-                // console.log(`player ${player} drew card ${card}. ${this.gameState.deck.cards.length} cards left`);
-                this.emitToPlayer(player, 'drawCard', card.serialize());
+            socket.on('bottom', cards => {
+                this.gameState.createBottom(cards);
+                this.gameState.phase = 'Play';
+                this.nsp.emit('play');
             });
         });
     }
