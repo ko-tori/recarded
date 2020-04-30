@@ -294,7 +294,7 @@
             }
             else {
                 //output += pairs[i].suit2 + " Pair (" + pairs[i].type + pairs[i].letter + "), ";
-                tmpOut += pairs[i].letter.toLowerCase() + "_";
+                tmpOut += pairs[i].suit.toLowerCase() + "_";
                 tmpOut += "" + getRank[pairs[i].letter];
             }
             //output += ", "; //remove later
@@ -331,6 +331,7 @@
             output2.push(tmpOut);
         }
 
+        console.log();
         return output2;
     }
 

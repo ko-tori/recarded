@@ -15,6 +15,7 @@ var declareNumberofCards;
 var declaredPlayer;
 var declaredTurn;
 var drawnCards = 0;
+var playerPlayTurn;
 var phase;
 
 // player info
@@ -136,9 +137,9 @@ class TableCardRenderer {
 
 		if (phase == 'Play') {
 			if (CENTER_HOVER) {
-				ctx.fillText(analyzeHand(this.group, trumpCard), width / 2, height / 2 + this.hInterp / 2 + 10);
+				ctx.fillText(analyzeHandText(this.group, trumpCard), width / 2, height / 2 + this.hInterp / 2 + 10);
 			} else {
-				ctx.fillText(analyzeHand(this.group, trumpCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
+				ctx.fillText(analyzeHandText(this.group, trumpCard), this.tableCenterX, this.tableCenterY + this.hInterp / 2 + 10);
 			}
 		}
 
@@ -476,14 +477,14 @@ var playCardsHandler = function(cards, player=playerPosition, flip=true) {
 	}
 
 	if (flip) {
-		if (table[p].length > 0) {
-			for (let card of table[p][table[p].length - 1]) {
+		if (table[player].length > 0) {
+			for (let card of table[player][table[player].length - 1]) {
 				card.renderer.flipped = true;
 			}
 		}
 	}
 
-	table[p].push(cards);
+	table[player].push(cards);
 };
 
 var getHandCardDim = function() {
@@ -563,8 +564,8 @@ var clickListener = function(e) {
 		selected = [];
 	}
 
-	if (phase == 'Play') {
-		document.getElementById('selectedCards').innerHTML = analyzeHand(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
+	if (phase == 'Play' && playerPosition == playerPlayTurn) {
+		document.getElementById('selectedCards').innerHTML = analyzeHandText(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
 	}
 };
 
@@ -579,7 +580,7 @@ var contextMenuListener = function(e) {
 	// 		selected.splice(i, 1);
 	// 	}
 		
-	// 	document.getElementById('selectedCards').innerHTML = analyzeHand(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
+	// 	document.getElementById('selectedCards').innerHTML = analyzeHandText(selected, trumpCard).split(',').map(s => s.trim()).join('<br>');
 	// } else {
 		
 	// }
@@ -994,8 +995,6 @@ var render = function(currentTime) {
 	// cards on table rendering
 	ctx.save();
 
-	// TODO in the actual thing these loops might be inverted for the table to be represented as:
-	// table[i][j] = hand j played in round i
 	for (let player of table) {
 		for (let group of player) {
 			for (let card of group) {

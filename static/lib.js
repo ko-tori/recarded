@@ -5,7 +5,7 @@ const suits = {'C': 'Clubs', 'D': 'Diamonds', 'H': 'Hearts', 'S': 'Spades', 'J':
 const suitRanks = {'C': 0, 'D': 1, 'S': 2, 'H': 3, 'J': 5};
 const playerdeckdict = { 5 : { 2: 20 } };
 const Phases = ["Draw", "Bottom", "Play", "Score"];
-const tractors = ["Pair", "Tractor", "Triple Tractor", "Quadruple Tractor", "Quintuple Tractor", "Sextuple Tractor", "Septuple Tractor", "Octuple Tractor", "Nonuple Tractor", "Decuple Tractor", "Undecuple Tractor", "Duodecuple Tractor"];
+const adjectives = ["","","","Triple ", "Quadruple ", "Quintiple ", "Sextuple ", "Septuple ", "Octuple ", "Nonuple ", "Decuple "];
 const numToSuit = ["Clubs", "Diamonds", "Hearts", "Spades"];
 // You can use the above to help make readable output
 
@@ -24,225 +24,325 @@ function returnOther(num) {
 	return listVal;
 }
 
-function analyzeHand(cards, trumpCard) {
-	if (!trumpCard || cards.length == 0) {
-		return '';
-	}
-	var cTrack = new Array(54);
-	cTrack.fill(0);
-	var trumpNum = 0;
-	var tractorName = "";
-	var pairName = "";
-	var singleName = "";
+function analyzeHand(cards, declaredCard, debug=false) {
+    //gets the number value from the letter; if two numbers are 1 off from each other, they are adjacent (for the purpose of tractors)
+    //var getNum = {};
+    var getNum = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':18, 'M':19};
+    //I'm using L and M for small joker and big joker respectively (because they're next in alphabet after K)
 
-	if (trumpCard.suit == 'D') {
-		trumpNum += 13;
-	}
-	if (trumpCard.suit == 'H') {
-		trumpNum += 26;
-	}
-	if (trumpCard.suit == 'S') {
-		trumpNum += 39;
-	}
-	if (trumpCard.suit == 'J') {
-		trumpNum += 52;
-	}
-		
-	trumpNum += trumpCard.num - 1;
-		
-	// console.log(trumpNum);
-	
-	for (i = 0; i < cards.length; i++) {
-		var temp = 0;
-		if (cards[i].suit == 'D') {
-			temp += 13;
-		}
-		if (cards[i].suit == 'H') {
-			temp += 26;
-		}
-		if (cards[i].suit == 'S') {
-			temp += 39;
-		}
-		if (cards[i].suit == 'J') {
-			temp += 52;
-		}
+    var getRank = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':17, 'M':18};
+    var tmpOut = "";
+    var output2 = [];
+    //now change the values depending on trump number to adjust adjacency
+    var trumpValue = getNum[letters[declaredCard.num]]; //the value 2-14
+    var trumpLetter = letters[declaredCard.num]; //letter A-K
+    getNum[trumpLetter] = 16; //change the trump number to be adjacent to small joker
+    getRank[trumpLetter] = 16;
+    for (let it in getNum) { //decrement all the values above the trump
+        //ex. if 5 is the trump, then 6 and above are decremented so 4 is adjacent to 6
+        if (getNum[it] > trumpValue) {
+            getNum[it]-=1;
+        }
+    }
+    var singles = []; //array of single cards
+    var pairs = []; //array of pairs of cards
+    var tractors = [];
 
-		
-		temp += cards[i].num - 1;
-		cTrack[temp] += 1;
+    /*
+    Hashtable, stored key->value of suit+letter->number of times it appears
+    for example two ace of clubs is a key->value of CA->2
+    */
+    var cardCount = {};
+    for (let cardIterator of cards) {
+        var currentCard; //two characters, one for suit and one for letter
+        if (cardIterator.suit == 'J') {
+            if (cardIterator.num == 1) {
+                currentCard = cardIterator.suit + 'L';
+            }
+            else {
+                currentCard = cardIterator.suit + 'M';
+            }
+        }
+        else {
+            currentCard = cardIterator.suit + letters[cardIterator.num];
+        }
+        if (currentCard in cardCount) {
+            cardCount[currentCard] += 1;
+        }
+        else {
+            cardCount[currentCard] = 1;
+        }
+    }
+    
+    var output = ""; //final output string
+    for (let val in cardCount) {
+        var currentSuit; //full name of suit (ex. Hearts)
+        var currentNum = val[1]; //the letter of the card (ex. A)
+        var count = cardCount[val]; //number of times card appears (ex. 2 for a pair)
+        var isTrump = 0; //0 false, 1 true
+        var trumpType = "" //big or small
+        if (val[0] == declaredCard.suit && val[1] == letters[declaredCard.num]) { //big trump (suit and value match)
+            isTrump = 1;
+            trumpType = "Big "; //the space is intentional so I can use "trumpType + card" and have it be functional regardless of whether it has a trumpType or not 
+        }
+        else if (val[1] == letters[declaredCard.num]) { //small trump (only value matches)
+            isTrump = 1;
+            trumpType = "Small "
+        }
+        else if (val[0] == declaredCard.suit) { //regular trump (suit matches)
+            isTrump = 1;
+        }
+        currentSuit = suits[val[0]];
 
-	}
-	// console.log(cTrack);
-	//check for big declared J1 J2 tractors
-	if(cTrack[trumpNum] == 2) {
-		if(cTrack[52] == 2) {
-			if(cTrack[53] == 2) {
-				tractorName += ", Trump Triple Tractor (Big " + letters[trumpCard.num] + "-Small Joker-Big Joker)";
-			}
-			else{
-				tractorName += ", Trump Double Tractor (Big " + letters[trumpCard.num] + "-Small Joker)";
-			}	
-		}
-		else{
-			pairName += ", Trump Pair (Big " + letters[trumpCard.num] + ")";
-			if(cTrack[53] == 2) {
-				pairName += ", Trump Pair (Big Joker)";
-			}
-		}
-	}
-	else {
-		if(cTrack[53] == 2){
-			if(cTrack[52] == 2) {
-				pairName += ", Trump Tractor (Small Joker-Big Joker)";
-			}
-			else {
-				pairName += ", Trump Pair (Big Joker)";
-			}
-		}
-		else if(cTrack[52] == 2){
-			pairName += ", Trump Pair (Small Joker)";
-		}
-	}	
-	if(cTrack[trumpNum] == 1){
-		singleName += ", Trump Single (Big " + letters[trumpCard.num] + ")"; 
-	}
-	//check for the other declare pairs
-	otherDeclared = returnOther(trumpNum);
-	for(i = 0; i < otherDeclared.length; i++) {
-		if(cTrack[otherDeclared[i]] == 2) {
-			pairName += ", Trump Pair (Small " + letters[trumpCard.num] + ")";
-		}
-		if(cTrack[otherDeclared[i]] == 1) {
-			singleName += ", Trump Single (Small " + letters[trumpCard.num] + ")";
-		}
-	}
-	//check for pairs/tractors/single trump
-	var start = trumpNum - (trumpNum % 13);
-	var prefixTacker = 0;
-	var holder = "";
-	var acePair = false;
+        //adds to the arrays depending on whether its a single or a pair
+        var toAdd;
+        /*
+        trump is 0/1 for not trump/trump respectively
+        suit is the single char suit of the card ("S")
+        suit2 is the full name of the suit ("Spades")
+        letter is the single char letter of the card ("2")
+        type is the type of trump (small/big)
+        */
+        if (count == 1) {
+            toAdd = {'trump':isTrump, 'suit':val[0], 'suit2':currentSuit, 'letter':val[1], 'type':trumpType}
+            singles.push(toAdd);
+        }
+        else if (count == 2) {
+            toAdd = {'trump':isTrump, 'suit':val[0], 'suit2':currentSuit, 'letter':val[1], 'type':trumpType}
+            pairs.push(toAdd);
+        }
+    }
+    
+    //add singles to output first
+    var i;
+    for (i = 0; i < singles.length; i++){
+        if (singles[i].trump == 1) {
+            output += "Trump Single (" + singles[i].type + singles[i].letter + "), ";
+        }
+        else {
+            output += singles[i].suit2 + " Single (" + singles[i].type + singles[i].letter + "), ";
+        }
+    }
+    
 
-	for(i = start; i < start + 13; i++) {
-		if (i == trumpNum) {
-			i++;
-			if (i == start + 13) {
-				break;
-			}
-		}
-		if (cTrack[i] == 1) {
-			singleName += ", Trump Single (" + letters[i % 13 + 1] + ")"; 
-		}
-		if (cTrack[i] == 2) {
-			if(i == start && cTrack[i + 12] == 2) {
-				acePair = true;
-				continue;
-			}
-			prefixTacker += 1;
-			if(holder != "") {
-				holder += "-"
-			}
-			holder += letters[i % 13 + 1];
-			if (i == start + 12) {
-				if (acePair) {
-					prefixTacker += 1;
-					holder += "-A";
-				}
-				if (prefixTacker == 1) {
-					pairName += ", Trump Pair (" + holder +")";
-				}
-				else if (prefixTacker > 1) {
-					tractorName += ", Trump " + tractors[prefixTacker - 1] + " (" + holder +")";
-				}
-				prefixTacker = 0;
-				holder = "";
-			}
-		}
-		else if (prefixTacker > 0) {
-			if (prefixTacker == 1) {
-				pairName += ", Trump Pair" + " (" + holder +")";
-			}
-			else if (prefixTacker > 1) {
-				tractorName += ", Trump " + tractors[prefixTacker - 1] + " (" + holder +")";
-			}
-			prefixTacker = 0;
-			holder = "";
-		}
-	}
+    //sort pairs by suit then numRank
+    pairs.sort(function (a,b) { 
+        if (a.suit == b.suit) {
+            return getNum[a.letter] > getNum[b.letter] ? 1 : -1;
+        } else {
+            return a.suit > b.suit ? 1 : -1;
+        }
+    });
 
-	if (cTrack[52] == 1) {
-		singleName += ', Trump Single (Small Joker)';
-	}
+    //checking if tractors in pairs
+    var length; //length of the tractor sequence
+    var increment; //only used to 'skip' the trump number
+    for (var i = 0; i < pairs.length; i++){
+        length = 0;
+        increment = 0;
+        var jokerFlag = 0; //0 if joker found, 1 if joker not found
+        //this block handles a big trump -> small joker tractor (and big trump -> small joker -> big joker)
+        if (pairs[i].type == "Big ") {//if card is a big trump, check if there are small and big jokers
+            for (let j = 0; j < pairs.length; j++){
+                if (pairs[j].suit == 'J' && pairs[j].letter == 'L') { //find the small joker
+                    jokerFlag = 1; 
+                    length = 2;
+                    if (j != (pairs.length -1) && pairs[j+1].suit == 'J' && pairs[j+1].letter == 'M') { //find large joker 
+                        length = 3;
+                    }
+                    if (length == 2) {
+                        output += "Trump Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker), ";
+                        tmpOut = "t2_t_16";
+                        tractors.push(tmpOut);
+                        //output2.push(tmpOut);
+                    }
+                    else if (length == 3) {
+                       output += "Trump Triple Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker-Big Joker), ";
+                       tmpOut = "t3_t_16";
+                       tractors.push(tmpOut);
+                       //output2.push(tmpOut);
+                    }
 
-	if (cTrack[53] == 1) {
-		singleName += ', Trump Single (Big Joker)';
-	}
+                    //remove the pairs used here
+                    for (let k = 0; k < length; k++) {
+                        pairs.splice(j,1);
+                    }
+                    pairs.splice(i,1);
+                    break;
+                }
+            }
+        }
+        if (pairs.length == 0) break; //if the above operation removed all the elements then exit
+        if (pairs[i].letter != letters[declaredCard.num]) { //don't start looking for a tractor if the first one is a trump number
+            //while the next card is of the same suit and their value is 1 higher, add to the length of the tractor
+            while ((pairs[i].suit == pairs[i+length].suit) && //current suit and next suit must match
+            (getNum[pairs[i].letter]+length+increment) == getNum[pairs[i+length].letter]) { //and the values in getNum must match
+                length++;
+                if (i + length >= pairs.length) { //passed the end, exit loop
+                    break;
+                }
+                if ((getNum[pairs[i].letter]+length) == getNum[letters[declaredCard.num]]) { //next number is the trump number, skip it
+                    increment = 1;
+                }
+            }
+        }
 
-	//check for pairs/tractor/single everything else
-	for (x = 0; x < 4; x++) {
-		acePair = false;
-		prefixTacker = 0;
-		holder = "";
-		if (x == Math.floor(trumpNum/13)) {
-			// console.log("reeee");
-			x++;		
-			if (x == 4) {
-				break;
-			}
-		}
-		for(i = x * 13; i <  x * 13 + 13; i++) {
-			if (otherDeclared.includes(i)) {
-				i++;
-			}
-			if (cTrack[i] == 1) {
-				singleName += ", " + numToSuit[x] + " Single (" + letters[(i%13 + 1)] + ")"; 
-			}
-			if (cTrack[i] == 2) {
-				if(i % 13 == 0 && cTrack[i + 12] == 2) {
-					acePair = true;
-					continue;
-				}
-				prefixTacker += 1;
-				if(holder != "") {
-					holder += "-"
-				}
-				holder += letters[(i%13 + 1)];
-				if (i % 13 == 12) {
-					if (acePair) {
-						prefixTacker += 1;
-						holder += "-A";
-					}
-					if (prefixTacker == 1) {
-						pairName += ", " + numToSuit[x] +" Pair" + " (" + holder +")";
-					}
-					else if (prefixTacker > 1) {
-						tractorName += ", " + numToSuit[x] + " " + tractors[prefixTacker - 1] + " (" + holder +")";
-					}
-					prefixTacker = 0;
-					holder = "";
-				}
-			}
-			else if (prefixTacker > 0) {
-				if (prefixTacker == 1) {
-					pairName += ", " + numToSuit[x] +" Pair" + " (" + holder +")";
-				}
-				else if (prefixTacker > 1) {
-					tractorName += ", " + numToSuit[x] + " " + tractors[prefixTacker - 1] + " (" + holder +")";
-				}
-				prefixTacker = 0;
-				holder = "";
-			}
-		}
-	}
+        var adj = adjectives[length]; //sets the adjective for the tractor if there is one (triple, quadruple, etc)
 
-	//check to see if the first char is a , and if it is delete it
-	//console.log(singleName);
-	var response = tractorName + pairName + singleName;
-	if (response.charAt(0) == ',') {
-		response = response.slice(2)
-	}
-	//console.log(response);
-	//console.log(pairName);
-	return response
+        if (length >= 2 && jokerFlag == 0) { //found a 2 or longer length tractor 
+            if (pairs[i].suit == "J") { //trump tractor because it contains a joker
+                output += "Trump Tractor (";
+                // output += "t2_t_17";
+                // output2.push("t2_t_17");
+                tractors.push("t2_t_17")
+                
+                for (let tmp = 0; tmp < length; tmp++) {
+                    if (pairs[tmp+i].suit == "J") { 
+                        if (pairs[tmp+i].letter == 'L') {
+                            output += "Small Joker";
+                        }
+                        else {
+                            output += "Big Joker";
+                        }
+                    }
+                    if (tmp < (length-1)) {
+                        output+= "-";
+                    }
+                }
+                output += "), "
+                
+            }
+            else if (pairs[i].trump == 1) { //it is a trump tractor
+                output += "Trump " + adj + "Tractor (";
+                tmpOut = "t" + length + "_t_" + getRank[pairs[i].letter];
+                //output2.push(tmpOut)
+                tractors.push(tmpOut)
+                
+                for (let n = 0; n < length; n++) {
+
+                    output += pairs[i+n].type + pairs[i+n].letter;
+                    if (n != (length-1)) {
+                        output+="-"
+                    }
+                }
+                output += "), ";
+                
+            }
+            else { //regular (not trump) tractor
+                tmpOut = "t" + length + "_" + pairs[i].suit.toLowerCase() + "_" + getRank[pairs[i].letter];
+                //output2.push(tmpOut)
+                tractors.push(tmpOut)
+                
+                output += pairs[i].suit2 + " " + adj + "Tractor (";
+                for (let n = 0; n < length; n++) {
+                    output += pairs[i+n].type + pairs[i+n].letter;
+                    if (n != (length-1)) {
+                        output+="-"
+                    }
+                }
+                output += "), ";
+                 
+            }
+
+            //remove pairs used in this tractor
+            for (let k = 0; k < length; k++) {
+                pairs.splice(i,1);
+            }
+            i--; //decrement i one after to reset position after finding a tractor
+        }
+    }
+
+    tractors.sort(function (a,b) {
+        if (a[1] == b[1]) {
+            return parseInt(b.substring(5)) - parseInt(a.substring(5));
+        }
+        return a[1] > b[1] ? 1 : -1;
+    });
+
+    for (i = 0; i < tractors.length; i++) {
+        tmpOut = tractors[i];
+        output2.push(tmpOut);
+    }
+
+    pairs.sort((a, b) => getRank[b.letter] - getRank[a.letter]);
+
+    //add remaining pairs to the output
+    for (i = 0; i < pairs.length; i++){
+        tmpOut = "p_";
+        if (pairs[i].trump == 1) {
+            output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
+            tmpOut += "t_";
+            if (pairs[i].type == "Small ") {
+                tmpOut += "15";
+            }
+            else if (pairs[i].type == "Big ") {
+                tmpOut += "16";
+            }
+            else {
+                tmpOut += getRank[pairs[i].letter];
+            }   
+        }
+        else {
+            output += pairs[i].suit2 + " Pair (" + pairs[i].type + pairs[i].letter + "), ";
+            tmpOut += pairs[i].suit.toLowerCase() + "_";
+            tmpOut += "" + getRank[pairs[i].letter];
+        }
+        // output += ", "; //remove later
+        output2.push(tmpOut);
+    }
+
+    //only sorts by number value
+    singles.sort(function (a,b) { 
+    if (getRank[a.letter] < getRank[b.letter]) return 1;
+    else return -1;
+    });
+    
+    //singles last
+    for (i = 0; i < singles.length; i++){
+        tmpOut = "s_";
+        if (singles[i].trump == 1) {
+            output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
+            tmpOut += "t_";
+            if (singles[i].type == "Small ") {
+                tmpOut += "15";
+            }
+            else if (singles[i].type == "Big ") {
+                tmpOut += "16";
+            }
+            else {
+                tmpOut += getRank[singles[i].letter];
+            }   
+        }
+        else {
+            output += singles[i].suit2 + " Single (" + singles[i].type + singles[i].letter + "), ";
+            tmpOut += singles[i].suit.toLowerCase() + "_";
+            tmpOut += "" + getRank[singles[i].letter];
+        }
+        output2.push(tmpOut);
+    }
+
+    output = output.substring(0,output.length - 2);
+
+    let objs = output2.map(o => {
+        let [type, suit, n] = o.split('_');
+        let order;
+        if (type[0] == 's') {
+            order = 0;
+        } else if (type[0] == 'p') {
+            order = 1;
+        } else {
+            order = parseInt(type[1]);
+        }
+
+        return {
+            order, suit, n: parseInt(n)
+        };
+	});
+
+    return {
+    	text: output,
+    	objs: objs
+    };
 }
 
 function actualRanks(card) {

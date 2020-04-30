@@ -137,7 +137,6 @@
 <script type="text/javascript" src="/lib.js"></script>
 <script type="text/javascript" src="/game.js"></script>
 <script type="text/javascript">
-	var temp1;
 	var lobbyInfo;
 	var status = 'loading';
 	var connected = [];
@@ -263,12 +262,11 @@
 				}
 			}
 
-			temp1 = data.deck.cards;
-
 			trumpCard = data.trumpCard;
 			declareNumberofCards = data.declareNumberofCards;
 			declaredPlayer = data.declaredPlayer;
 			declaredTurn = data.declaredTurn;
+			playerPlayTurn = data.playerPlayTurn;
 
 			phase = data.phase;
 			// add more as needed
@@ -361,6 +359,9 @@
 	socket.on('giveBottom', cards => {
 		phase = 'Bottom';
 
+		hand = hand.concat(table[playerPosition]);
+		table = [[], [], [], [], []];
+
 		let n = hand.length + cards.length;
 		for (let c of cards) {
 			let card = new Card(c.suit, c.num, HandCardRenderer);
@@ -385,9 +386,11 @@
 
 	socket.on('play', data => {
 		phase = 'Play';
+		playerPlayTurn = declaredPlayer;
 	});
 
 	socket.on('playCards', data => {
+		playerPlayTurn = (playerPlayTurn + 1) % 5;
 		let p = data.player;
 		let cards = data.cards.map(c => Card.deserialize(c));
 
@@ -400,6 +403,7 @@
 	});
 
 	function sendPlayCards(cards) {
+		playerPlayTurn = (playerPlayTurn + 1) % 5;
 		socket.emit('playCards', {
 			player: playerPosition,
 			cards: cards.map(c => c.serialize())

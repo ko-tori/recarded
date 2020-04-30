@@ -205,6 +205,17 @@ class Game {
             });
 
             socket.on('playCards', data => {
+                let turnN = this.gameState.playCards(data);
+                if (turnN == this.gameState.numPlayers) {
+                    let {winningPlayer, totalPoints, roundsLeft} = this.gameState.evaulateRound();
+
+                    this.nsp.emit('roundResult', { winningPlayer, totalPoints });
+
+                    if (cardsLeft == 0) {
+                        this.gameState.phase = 'Score';
+                        // do scoring phase
+                    }
+                }
                 socket.broadcast.emit('playCards', data);
             });                
 
