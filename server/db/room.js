@@ -7,7 +7,6 @@ var Room = new Schema({
     owner: {type: mongoose.Schema.Types.ObjectId, ref: 'Account'},
     members: [{type: mongoose.Schema.Types.ObjectId, ref: 'Account'}],
     invited: [{type: mongoose.Schema.Types.ObjectId, ref: 'Account'}],
-    password: String,
     inviteOnly: Boolean,
     status: String, // lobby, started, finished
     game: Object

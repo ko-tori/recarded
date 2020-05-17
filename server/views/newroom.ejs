@@ -2,7 +2,7 @@
 <html>
 <head>
 	<title>Create a Room</title>
-	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="stylesheet" type="text/css" href="/style.css">
 </head>
 <body>
 	<%- include('header', {user: user}); %>
@@ -11,7 +11,6 @@
 
 		<form action="/newroom" method="post">
 			<input id="name_input" autocomplete="off" name="name" placeholder="Enter Room Name"><br>
-			<input autocomplete="off" name="password" placeholder="Enter Password (optional)"><br>
 			Invite only:<input type="checkbox" name="inviteOnly"><br>
 			Invite players:<br>
 			<input name="invited1" autocomplete="off" name="name" placeholder="Player 2"><br>

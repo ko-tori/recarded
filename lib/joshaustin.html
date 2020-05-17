@@ -34,16 +34,20 @@
         }
     }
 
-    function analyzeHand(cards, declaredCard) {
+    function analyzeHand(cards, declaredCard, debug=false) {
         //gets the number value from the letter; if two numbers are 1 off from each other, they are adjacent (for the purpose of tractors)
         //var getNum = {};
-        var getNum = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':20, 'M':21};
+        var getNum = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':18, 'M':19};
         //I'm using L and M for small joker and big joker respectively (because they're next in alphabet after K)
 
+        var getRank = {'A':14, '2':2 , '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':11, 'Q':12, 'K':13, 'L':17, 'M':18};
+        var tmpOut = "";
+        var output2 = [];
         //now change the values depending on trump number to adjust adjacency
         var trumpValue = getNum[letters[declaredCard.num]]; //the value 2-14
         var trumpLetter = letters[declaredCard.num]; //letter A-K
-        getNum[trumpLetter] = 19; //change the trump number to be adjacent to small joker
+        getNum[trumpLetter] = 16; //change the trump number to be adjacent to small joker
+        getRank[trumpLetter] = 16;
         for (let it in getNum) { //decrement all the values above the trump
             //ex. if 5 is the trump, then 6 and above are decremented so 4 is adjacent to 6
             if (getNum[it] > trumpValue) {
@@ -52,6 +56,7 @@
         }
         var singles = []; //array of single cards
         var pairs = []; //array of pairs of cards
+        var tractors = [];
 
         /*
         Hashtable, stored key->value of suit+letter->number of times it appears
@@ -117,7 +122,7 @@
                 pairs.push(toAdd);
             }
         }
-
+        /*
         //add singles to output first
         var i;
         for (i = 0; i < singles.length; i++){
@@ -128,18 +133,21 @@
                 output += singles[i].suit2 + " Single (" + singles[i].type + singles[i].letter + "), ";
             }
         }
+        */
 
         //sort pairs by suit then numRank
         pairs.sort(function (a,b) { 
-        if (a.suit > b.suit) return 1;
-        if (getNum[a.letter] > getNum[b.letter]) return 1;
-        else return -1;
+            if (a.suit == b.suit) {
+                return getNum[a.letter] > getNum[b.letter] ? 1 : -1;
+            } else {
+                return a.suit > b.suit ? 1 : -1;
+            }
         });
 
         //checking if tractors in pairs
         var length; //length of the tractor sequence
         var increment; //only used to 'skip' the trump number
-        for (i = 0; i < pairs.length; i++){
+        for (var i = 0; i < pairs.length; i++){
             length = 0;
             increment = 0;
             var jokerFlag = 0; //0 if joker found, 1 if joker not found
@@ -153,10 +161,16 @@
                             length = 3;
                         }
                         if (length == 2) {
-                            output += "Trump Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker), ";
+                            //output += "Trump Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker), ";
+                            tmpOut = "t2_t_16";
+                            tractors.push(tmpOut);
+                            //output2.push(tmpOut);
                         }
                         else if (length == 3) {
-                            output += "Trump Triple Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker-Big Joker), ";
+                           // output += "Trump Triple Tractor ("  + pairs[i].type + pairs[i].letter + "-Small Joker-Big Joker), ";
+                           tmpOut = "t3_t_16";
+                           tractors.push(tmpOut);
+                           //output2.push(tmpOut);
                         }
 
                         //remove the pairs used here
@@ -187,7 +201,11 @@
 
             if (length >= 2 && jokerFlag == 0) { //found a 2 or longer length tractor 
                 if (pairs[i].suit == "J") { //trump tractor because it contains a joker
-                    output += "Trump Tractor (";
+                    //output += "Trump Tractor (";
+                    //output += "t2_t_17";
+                    //output2.push("t2_t_17");
+                    tractors.push("t2_t_17")
+                    /*
                     for (let tmp = 0; tmp < length; tmp++) {
                         if (pairs[tmp+i].suit == "J") { 
                             if (pairs[tmp+i].letter == 'L') {
@@ -202,18 +220,29 @@
                         }
                     }
                     output += "), "
+                    */
                 }
                 else if (pairs[i].trump == 1) { //it is a trump tractor
-                    output += "Trump " + adj + "Tractor (";
+                    //output += "Trump " + adj + "Tractor (";
+                    tmpOut = "t" + length + "_t_" + getRank[pairs[i].letter];
+                    //output2.push(tmpOut)
+                    tractors.push(tmpOut)
+                    /*
                     for (let n = 0; n < length; n++) {
+
                         output += pairs[i+n].type + pairs[i+n].letter;
                         if (n != (length-1)) {
                             output+="-"
                         }
                     }
                     output += "), ";
+                    */
                 }
                 else { //regular (not trump) tractor
+                    tmpOut = "t" + length + "_" + pairs[i].suit.toLowerCase() + "_" + getRank[pairs[i].letter];
+                    //output2.push(tmpOut)
+                    tractors.push(tmpOut)
+                    /*
                     output += pairs[i].suit2 + " " + adj + "Tractor (";
                     for (let n = 0; n < length; n++) {
                         output += pairs[i+n].type + pairs[i+n].letter;
@@ -221,7 +250,8 @@
                             output+="-"
                         }
                     }
-                    output += "), "; 
+                    output += "), ";
+                    */ 
                 }
 
                 //remove pairs used in this tractor
@@ -232,27 +262,86 @@
             }
         }
 
-        //add remaining pairs to the output
-        for (i = 0; i < pairs.length; i++){
-            if (pairs[i].trump == 1) {
-                output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
+        tractors.sort(function (a,b) {
+            if (a[1] == b[1]) {
+                return parseInt(b.substring(5)) - parseInt(a.substring(5));
             }
-            else {
-                output += pairs[i].suit2 + " Pair (" + pairs[i].type + pairs[i].letter + "), ";
-            }
+            return a[1] > b[1] ? 1 : -1;
+        });
+
+        for (i = 0; i < tractors.length; i++) {
+            tmpOut = tractors[i];
+            output2.push(tmpOut);
         }
 
-        output = output.substring(0,output.length-2); //strip off extraneous comma and space
-        return output;
-        //return String(cards);
+        pairs.sort((a, b) => getRank[b.letter] - getRank[a.letter]);
+
+        //add remaining pairs to the output
+        for (i = 0; i < pairs.length; i++){
+            tmpOut = "p_";
+            if (pairs[i].trump == 1) {
+                //output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
+                tmpOut += "t_";
+                if (pairs[i].type == "Small ") {
+                    tmpOut += "15";
+                }
+                else if (pairs[i].type == "Big ") {
+                    tmpOut += "16";
+                }
+                else {
+                    tmpOut += getRank[pairs[i].letter];
+                }   
+            }
+            else {
+                //output += pairs[i].suit2 + " Pair (" + pairs[i].type + pairs[i].letter + "), ";
+                tmpOut += pairs[i].suit.toLowerCase() + "_";
+                tmpOut += "" + getRank[pairs[i].letter];
+            }
+            //output += ", "; //remove later
+            output2.push(tmpOut);
+        }
+
+        //only sorts by number value
+        singles.sort(function (a,b) { 
+        if (getRank[a.letter] < getRank[b.letter]) return 1;
+        else return -1;
+        });
+        
+        //singles last
+        for (i = 0; i < singles.length; i++){
+            tmpOut = "s_";
+            if (singles[i].trump == 1) {
+                //output += "Trump Pair (" + pairs[i].type + pairs[i].letter + "), ";
+                tmpOut += "t_";
+                if (singles[i].type == "Small ") {
+                    tmpOut += "15";
+                }
+                else if (singles[i].type == "Big ") {
+                    tmpOut += "16";
+                }
+                else {
+                    tmpOut += getRank[singles[i].letter];
+                }   
+            }
+            else {
+                //output += singles[i].suit2 + " Single (" + singles[i].type + singles[i].letter + "), ";
+                tmpOut += singles[i].letter.toLowerCase() + "_";
+                tmpOut += "" + getRank[singles[i].letter];
+            }
+            output2.push(tmpOut);
+        }
+
+        console.log();
+        return output2;
     }
 
     function add(s) {
         out.innerHTML += `<p>${s}</p>`;
     }
-
-    var start = window.performance.now();
-    
+    /*
+    var cards = [new Card('C', 1), new Card('C', 2)];
+    add(analyzeHand(cards, new Card('S', 3)));
+    */
     // The outputs are just examples, just make them consistent and readable
     var cards1 = [new Card('C', 1), new Card('C', 1)];
     add(analyzeHand(cards1, new Card('S', 2))); // Clubs Pair (A)
@@ -306,10 +395,10 @@
     add(analyzeHand(cards16, new Card('D',7))); ///Spades Quadruple Tractor (2-3-4-5), Hearts Quadruple Tractor (2-3-4-5)
 
     var cards17 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 4), new Card('S', 4), new Card('S', 3), new Card('S', 3), new Card('H', 5), new Card('H', 5), new Card('H', 3), new Card('H', 3), new Card('H', 4), new Card('H', 4), new Card('H', 2), new Card('H', 2)];
-    add(analyzeHand(cards17, new Card('H',7))); ///Spades Quadruple Tractor (2-3-4-5), sTrump Quadruple Tractor (2-3-4-5)
+    add(analyzeHand(cards17, new Card('H',7))); ///Spades Quadruple Tractor (2-3-4-5), Trump Quadruple Tractor (2-3-4-5)
 
     var cards18 = [new Card('S', 2), new Card('S', 5), new Card('S', 2), new Card('S', 4), new Card('S', 5), new Card('S', 4), new Card('S', 3), new Card('S', 3), new Card('H', 5), new Card('H', 5), new Card('H', 3), new Card('H', 3), new Card('H', 4), new Card('H', 4), new Card('H', 2), new Card('H', 2)];
-    add(analyzeHand(cards18, new Card('H',5))); ///Spades Triple Tractor (2-3-4), Trump Triple Tractor (2-3-4), Trump Pair (Big 5), Trump pair (Small 5)
+    add(analyzeHand(cards18, new Card('H',5), true)); ///Spades Triple Tractor (2-3-4), Trump Triple Tractor (2-3-4), Trump Pair (Big 5), Trump pair (Small 5)
 
     var cards19 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3)];
     add(analyzeHand(cards19, new Card('H',4))); //Spades Quadruple Tractor (2-3-5-6)
@@ -317,7 +406,8 @@
     var cards20 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3), new Card('S', 7), new Card('S', 7)];
     add(analyzeHand(cards20, new Card('S',4))); //Trump Pentuple Tractor (2-3-5-6-7)
 
-    console.log('time:', window.performance.now() - start);
+    var cards21 = [new Card('S', 5), new Card('S', 5), new Card('S', 2), new Card('S', 2), new Card('S', 6), new Card('S', 6), new Card('S', 3), new Card('S', 3), new Card('S', 8), new Card('S', 8), new Card('S', 9), new Card('S', 9)];
+    add(analyzeHand(cards21, new Card('H',9))); //Trump Tractor (2-3) (5-6) (8 pair)
 
 </script>
 </body>

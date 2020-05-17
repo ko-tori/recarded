@@ -6,7 +6,8 @@ var passport = require('passport');
 var fs = require("fs");
 var Account = require('../db/account');
 var Room = require('../db/room');
-var RoomManager = require('../RoomManager')(io);
+var RoomManager = require('../RoomManager');
+RoomManager.init(io);
 
 router.get('/', function(req, res) {
 	res.render('index', { user: req.user });
@@ -124,8 +125,7 @@ router.post('/newroom', async function(req, res) {
 		req.body.name,
 		req.user,
 		Object.values(invited).map(i => i._id),
-		Boolean(req.body.inviteOnly),
-		req.body.password);
+		Boolean(req.body.inviteOnly));
 	
 	for (let i of Object.values(invited)) {
 		i.invitedRooms.push(room._id);

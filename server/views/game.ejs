@@ -1,6 +1,416 @@
-Welcome to room <%= room.name %><br>
-Players: <%= [owner.username].concat(members).join(', ') %><br>
-Invited: <%= invited.join(', ') %><br>
-<form action='.' method='post'>
-<input type='submit' value='Start'>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Loading...</title>
+	<link rel="stylesheet" type="text/css" href="/style.css">
+	<style type="text/css">
+		#lobby-invonly {
+			font-size: 0.5em;
+			font-weight: normal;
+		}
+
+		#lobby, #loading {
+			display: none;
+			margin: 20px 10px;
+			padding: 0px 15px;
+		}
+
+		#lobby {
+			display: none;
+		}
+
+		#game {
+			display: none;
+			margin: 0;
+			
+			user-select: none;
+		}
+
+		@import url('https://fonts.googleapis.com/css?family=Titillium+Web');
+
+		canvas, #game {
+			top: 0;
+			left: 0;
+			position: absolute;
+		}
+
+		body {
+			overflow: hidden;
+			margin: 0;
+		}
+		#gameui {
+			position: absolute;
+			bottom: 1vmin;
+			right: 1vmin;
+			text-align: right;
+			font-size: 2em;
+			z-index: 2;
+			user-select: none;
+			display: none;
+		}
+
+		#selectedCards {
+			background-color: rgba(255, 255, 255, 0.8);
+			margin-bottom: 10px;
+			display: block;
+		}
+
+		#actionButton {
+			background-color: grey;
+			font: bold 5vh Titillium Web;
+			color: white;
+			padding: 0.05em 0.5em;
+			text-align: center;
+			border-radius: 1vmin;
+			transition: all 0.2s;
+			display: inline-block;
+		}
+
+		.activeActionButton:hover {
+			cursor: pointer;
+			border-radius: 0px !important;
+		}
+
+		#infoPopup {
+			display: none;
+			background-color: #EEE;
+			border-radius: 5px;
+			font-size: 0.5em;
+			margin-bottom: 0.5em;
+			padding: 0.25em;
+			text-align: center;
+		}
+
+		.pointer {
+			cursor: pointer;
+		}
+
+		#invButton {
+			margin-left: 1em;
+		}
+
+		button {
+			cursor: pointer;
+		}
+
+		button[disabled] {
+			cursor: default;
+		}
+
+		.lobby-connected {
+			color: green;
+		}
+
+		.lobby-notconnected {
+			color: red;
+		}
+
+		#canvas {
+			z-index: 0;
+		}
+
+		#priority-canvas {
+			z-index: 1;
+		}
+	</style>
+	<script type="text/javascript" src="/ext/socket.io.js"></script>
+	<script type="text/javascript" src="/ext/jquery-3.4.1.min.js"></script>
+</head>
+<body>
+	<div id='loading'>Loading...</div>
+	<div id='lobby'>
+		<h1><span id='lobby-roomName'></span> <span id='lobby-invonly'></span></h1>
+		<p>Owner: <span  id='lobby-owner'></span></p>
+		<p>Players: <span id='lobby-players'></span></p>
+		<p>Invited: <span id='lobby-invited'></span><button id='invButton'>Invite</button></p>
+		<p><button id='startButton'>Start</button></p>
+		<a href='/'>Home</a>
+	</div>
+
+	<div id='gameui'><div id='selectedCards'></div><div id='infoPopup'>teset</div><div id='actionButton'>Declare</div></div>
+	
+	<div id='game'>
+		<canvas id='canvas'></canvas>
+		<canvas id='priority-canvas'></canvas>
+	</div>
+
+<script type="text/javascript" src="/lib.js"></script>
+<script type="text/javascript" src="/game.js"></script>
+<script type="text/javascript">
+	var lobbyInfo;
+	var status = 'loading';
+	var connected = [];
+
+	const frames = {
+		lobby: ['lobby'],
+		game: ['game', 'gameui'],
+		loading: ['loading']
+	};
+
+	function showFrame(fr) {
+		for (let [f, ids] of Object.entries(frames)) {
+			for (let id of ids) {
+				$('#' + id).css({ display: f == fr ? 'block' : 'none' });
+			}
+		}
+	}
+
+	var lobbyInitResolve;
+	var lobbyInit = new Promise((resolve, reject) => {lobbyInitResolve = resolve;});
+
+	var renderLobby = () => {
+		let players = lobbyInfo.players.map(p => `<span class='${connected.includes(p) ? 'lobby-connected' : 'lobby-notconnected'}'>${p}</span>`);
+
+		document.getElementById('lobby-roomName').innerHTML = lobbyInfo.roomName;
+		document.getElementById('lobby-invonly').innerHTML = lobbyInfo.inviteOnly ? 'Private Room' : 'Public Room';
+		document.getElementById('lobby-owner').innerHTML = lobbyInfo.owner;
+		document.getElementById('lobby-players').innerHTML = players.join(', ') || 'No Players';
+		document.getElementById('lobby-invited').innerHTML = '' + (lobbyInfo.invited.join(', ') || 'No Invitations');
+
+		document.getElementById('startButton').disabled = lobbyInfo.you != lobbyInfo.owner
+			// || lobbyInfo.players.length != 5; // enable this if you want to 5 players to start
+			// || connected.length != 5; // enable this if you want to require all 5 players to be connected to start
+		document.getElementById('invButton').disabled = lobbyInfo.players.length >= 5;
+
+		showFrame('lobby');
+	};
+
+	var socket = io.connect(location.pathname);
+
+	$('#invButton').click(e => {
+		let username = prompt('Enter a user to invite:');
+		socket.emit('invite', username);
+	});
+
+	$('#startButton').click(e => {
+		socket.emit('start');
+	});
+
+	socket.on('connect', () => {
+		// console.log(socket.id);
+	});
+
+	socket.on('initLobby', data => {
+		status = data.status;
+		document.title = '找朋友 - Room ' + data.roomName;
+		lobbyInfo = data;
+
+		if (status == 'lobby') {
+			renderLobby();
+		}
+
+		lobbyInitResolve();
+	});
+
+	socket.on('connectedChange', c => {
+		connected = c;
+
+		if (status == 'lobby') {
+			renderLobby();
+		}
+	});
+
+	socket.on('lobby-joined', data => {
+		lobbyInfo.players.push(data.username);
+		if (data.invited) {
+			let i = lobbyInfo.invited.indexOf(data.username);
+
+			if (i >= 0) {
+				lobbyInfo.invited.splice(i, 1);
+			}
+		}
+		renderLobby();
+	});
+
+	socket.on('lobby-invited', data => {
+		console.log('invited', data.username);
+		lobbyInfo.invited.push(data.username);
+		renderLobby();
+	});
+
+	socket.on('lobby-inviteError', err => {
+		alert(err);
+	});
+
+	socket.on('start-error', err => {
+		alert(err);
+	});
+
+	socket.on('initGame', async data => {
+		await lobbyInit;
+		console.log('initGame', data);
+		showFrame('loading');
+
+		align();
+
+		init(function() {
+			playerNames = new Array(5).fill(null);
+			playerTeams = new Array(5).fill(null);
+			playerPoints = new Array(5).fill(null);
+
+			for (let i = 0; i < data.players.length; i++) {
+				let p = data.players[i];
+				playerNames[i] = p.name;
+				playerTeams[i] = p.team;
+				playerPoints[i] = p.points;
+				playerLevels[i] = p.level;
+
+				if (p.name == lobbyInfo.you) {
+					hand = p.hand.map(c => new Card(c.suit, c.num, HandCardRenderer));
+					playerPosition = i;
+					declarable = p.declarable;
+				}
+			}
+
+			trumpCard = data.trumpCard;
+			declareNumberofCards = data.declareNumberofCards;
+			declaredPlayer = data.declaredPlayer;
+			declaredTurn = data.declaredTurn;
+			playerPlayTurn = data.playerPlayTurn;
+
+			phase = data.phase;
+			// add more as needed
+
+			// test declared card - TODO remove later
+			// trumpCard = new Card('C', 2);
+
+			if (data.trumpCard) {
+				trumpCard = new Card(data.trumpCard.suit, data.trumpCard.num);
+			}
+
+			status = 'started';
+			showFrame('game');
+
+			setCardParams();
+
+			hand.sort(cardSorter);
+			updateHandPositions();
+
+			socket.emit('ready');
+
+			window.requestAnimationFrame(mainLoop);
+		});
+	});
+
+	socket.on('err', error => {
+		socket.disconnect();
+		showFrame('loading');
+		document.getElementById('loading').innerHTML = `<p>${error}</p><a href='/'>Return Home</a>`;
+	});
+
+	// socket game events
+
+	socket.on('drawCard', c => {
+		drawnCards++;
+		if (!c) {
+			return; // someone else drew a card
+		}
+		let card = new Card(c.suit, c.num, HandCardRenderer);
+		let [r, cardH, cardW] = getHandCardDim();
+		card.setRendererParams(hand.length, hand.length, r, cardW, cardH);
+		card.renderer.offY = r / 2;
+		hand.push(card);
+		setTimeout(() => {
+			hand.sort(cardSorter);
+			updateHandPositions();
+		}, 500);
+	});
+
+	socket.on('declare', data => {
+		let {card, player, n, turn} = data;
+
+		if (declaredPlayer != playerPosition) {
+			setButton('overturn');
+		}
+
+		if (currentButton == buttons.reinforce) {
+			let canReinforce = handAtDeclaration.filter(c => {
+				if (c.equals(personalDeclaredCard)) {
+					c.renderer.enabled = true;
+					return true;
+				}
+			}).length > 0;
+
+			if (canReinforce) {
+				setButtonEnabled(true);
+				showInfo('You have %t seconds to reinforce if you wish', 5000);
+				setTimeout(() => {
+					setButtonEnabled(false);
+				}, 5000);
+			}
+		}
+
+		resetCards();
+
+		trumpCard = Card.deserialize(card);
+		declaredPlayer = player;
+		declareNumberofCards = n;
+		declaredTurn = turn;
+		handAtDeclaration = hand.slice();
+
+		playCardsHandler(new Array(n).fill(0).map(() => Card.deserialize(card)), player, false);
+	});
+
+	socket.on('restartDraw', () => {
+		hand = [];
+		socket.emit('ready');
+	});
+
+	socket.on('giveBottom', cards => {
+		phase = 'Bottom';
+
+		hand = hand.concat(table[playerPosition]);
+		table = [[], [], [], [], []];
+
+		let n = hand.length + cards.length;
+		for (let c of cards) {
+			let card = new Card(c.suit, c.num, HandCardRenderer);
+			let [r, cardH, cardW] = getHandCardDim();
+			card.setRendererParams(hand.length, n, r, cardW, cardH);
+			card.renderer.offY = r / 2;
+			hand.push(card);
+		}
+
+		for (let card of hand) {
+			card.renderer.enabled = true;
+		}
+		setButton('bottomConfirm');
+		showInfo('Choose your bottom 8 cards', 5000);
+		
+		updateHandPositions();
+		setTimeout(() => {
+			hand.sort(cardSorter);
+			updateHandPositions();
+		}, 500);
+	});
+
+	socket.on('play', data => {
+		phase = 'Play';
+		playerPlayTurn = declaredPlayer;
+	});
+
+	socket.on('playCards', data => {
+		playerPlayTurn = (playerPlayTurn + 1) % 5;
+		let p = data.player;
+		let cards = data.cards.map(c => Card.deserialize(c));
+
+		playCardsHandler(cards, p);
+	});
+
+	socket.on('info', data => {
+		let {text, duration} = data;
+		showInfo(text, duration);
+	});
+
+	function sendPlayCards(cards) {
+		playerPlayTurn = (playerPlayTurn + 1) % 5;
+		socket.emit('playCards', {
+			player: playerPosition,
+			cards: cards.map(c => c.serialize())
+		});
+	}
+
+	
+</script>
+</body>
+</html>

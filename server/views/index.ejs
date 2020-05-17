@@ -2,14 +2,12 @@
 <html>
 <head>
 	<title>找朋友</title>
-	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="stylesheet" type="text/css" href="/style.css">
 </head>
 <body>
 	<%- include('header', {user: user}); %>
 	<div id="contents">
 		<p>Welcome to 找朋友! <% if (!user) { %>Login to view more stuff.<% } %></p>
-
-		<a href="/test">test ui page</a>
 	</div>
 </body>
 </html>
