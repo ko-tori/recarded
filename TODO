@@ -18,6 +18,8 @@ Check if player can declare (won the round before, no one has declared yet or ov
 Check if play is valid based on cards played;
 Check winner of a round
 
+the following are priority
+
 implement compareHands
 implement client side analyzehand
 implement loading table clientside

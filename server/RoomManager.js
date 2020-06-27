@@ -205,9 +205,39 @@ class Game {
             });
 
             socket.on('playCards', data => {
-                let turnN = this.gameState.playCards(data);
-                if (turnN == this.gameState.numPlayers) {
-                    let {winningPlayer, totalPoints, roundsLeft} = this.gameState.evaulateRound();
+                let { play, turnN, valid, reason } = this.gameState.checkCards(data, socket.request.user.username, );
+
+                if (!valid) {
+                    if (turnN == 0) {
+                        // initial play is invalid
+
+                        // possible reasons:
+                        // multiple play is not highest
+                        // not single suit
+                        // playing out of turn
+                        // possible cheating reasons:
+                        // playing cards that do not exist/are not in hand
+                        // player not in game
+
+                        // notify player(s) and wait for retry
+                    } else {
+                        // play is invalid, notify player
+
+                        // possible reasons:
+                        // play does not have the right number of cards
+                        // play does not follow initial play when it can (suit, number)
+                        // playing out of turn
+                        // possible cheating reasons:
+                        // playing cards that do not exist/are not in hand
+                        // player not in game
+                    }
+
+                    return;
+                }
+
+                this.gameState.makePlay(play);
+                if (turnN + 1 == this.gameState.numPlayers) {
+                    let {winningPlayer, totalPoints, cardsLeft} = this.gameState.evaulateRound();
 
                     this.nsp.emit('roundResult', { winningPlayer, totalPoints });
 
